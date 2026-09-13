@@ -47,16 +47,16 @@ export const HowItWorksPage: React.FC = () => {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen py-16">
+    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-16 transition-colors">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/60 px-3 py-1 rounded-full">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-950/80 px-3 py-1 rounded-full">
             Under The Hood
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-3 font-['Space_Grotesk',sans-serif]">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-3 font-['Space_Grotesk',sans-serif]">
             How VentureLens AI Works
           </h1>
-          <p className="text-sm text-slate-600 mt-3">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-3">
             A transparent walkthrough of our validation architecture, AI models, and database security.
           </p>
         </div>
@@ -66,20 +66,20 @@ export const HowItWorksPage: React.FC = () => {
           {steps.map((step, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs flex flex-col md:flex-row gap-8 items-start"
+              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs flex flex-col md:flex-row gap-8 items-start transition-colors"
             >
               <div className="shrink-0 w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-900 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xl font-['Space_Grotesk',sans-serif] shadow-md">
                 {step.num}
               </div>
 
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900">{step.title}</h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">{step.desc}</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{step.title}</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">{step.desc}</p>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                   {step.details.map((detail, dIdx) => (
-                    <div key={dIdx} className="flex items-start gap-2 text-xs text-slate-700">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                    <div key={dIdx} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                       <span>{detail}</span>
                     </div>
                   ))}
@@ -90,25 +90,25 @@ export const HowItWorksPage: React.FC = () => {
         </div>
 
         {/* Tech Stack Banner */}
-        <div className="mt-16 bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-          <h3 className="text-base font-bold text-slate-900 text-center mb-6">
+        <div className="mt-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-xs transition-colors">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white text-center mb-6">
             Institutional Technical Architecture
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <Cpu className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-              <p className="text-xs font-bold text-slate-900">Gemini 3.8 Flash</p>
-              <p className="text-[11px] text-slate-500 mt-1">Structured JSON schema output with venture capital evaluation prompts.</p>
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-750">
+              <Cpu className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mx-auto mb-2" />
+              <p className="text-xs font-bold text-slate-900 dark:text-white">Gemini 3.8 Flash</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Structured JSON schema output with venture capital evaluation prompts.</p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <Database className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-              <p className="text-xs font-bold text-slate-900">Supabase & PostgreSQL</p>
-              <p className="text-[11px] text-slate-500 mt-1">9 relational tables, UUID primary keys, and strict Row Level Security (RLS).</p>
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-750">
+              <Database className="w-6 h-6 text-emerald-600 dark:text-emerald-400 mx-auto mb-2" />
+              <p className="text-xs font-bold text-slate-900 dark:text-white">Supabase & PostgreSQL</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">9 relational tables, UUID primary keys, and strict Row Level Security (RLS).</p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <ShieldCheck className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-              <p className="text-xs font-bold text-slate-900">Zero Client Key Exposure</p>
-              <p className="text-[11px] text-slate-500 mt-1">All Gemini requests proxy through server-side Express endpoints.</p>
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-750">
+              <ShieldCheck className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mx-auto mb-2" />
+              <p className="text-xs font-bold text-slate-900 dark:text-white">Zero Client Key Exposure</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">All Gemini requests proxy through server-side Express endpoints.</p>
             </div>
           </div>
         </div>

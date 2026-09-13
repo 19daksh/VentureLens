@@ -106,16 +106,16 @@ export const FeaturesPage: React.FC = () => {
   ];
 
   return (
-    <div className="bg-slate-50 min-h-screen py-16">
+    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-16 transition-colors">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-100/60 px-3 py-1 rounded-full">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-950/80 px-3 py-1 rounded-full">
             Feature Deep Dive
           </span>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mt-3 font-['Space_Grotesk',sans-serif]">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-3 font-['Space_Grotesk',sans-serif]">
             Everything you need to stress-test your startup
           </h1>
-          <p className="text-sm text-slate-600 mt-3 leading-relaxed">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
             Built on institutional venture diligence frameworks to help founders navigate market reality before committing capital.
           </p>
         </div>
@@ -126,25 +126,25 @@ export const FeaturesPage: React.FC = () => {
             return (
               <div
                 key={idx}
-                className="bg-white p-7 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-300 transition-all flex flex-col justify-between"
+                className="bg-white dark:bg-slate-900 p-7 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-600 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                       <Icon className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                       {feat.tag}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">{feat.title}</h3>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{feat.desc}</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{feat.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">{feat.desc}</p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 space-y-2">
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
                   {feat.points.map((pt, pIdx) => (
-                    <div key={pIdx} className="flex items-center gap-2 text-xs text-slate-700">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <div key={pIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                       <span>{pt}</span>
                     </div>
                   ))}
@@ -154,11 +154,11 @@ export const FeaturesPage: React.FC = () => {
           })}
         </div>
 
-        <div className="mt-16 text-center bg-indigo-900 rounded-2xl p-10 text-white shadow-xl">
+        <div className="mt-16 text-center bg-indigo-900 dark:bg-indigo-950 rounded-2xl p-10 text-white shadow-xl border border-indigo-800/60">
           <h2 className="text-2xl sm:text-3xl font-bold font-['Space_Grotesk',sans-serif]">
             Ready to test your concept against this framework?
           </h2>
-          <p className="text-xs sm:text-sm text-indigo-200 mt-2 max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-indigo-200 dark:text-indigo-300 mt-2 max-w-xl mx-auto">
             Input your title, audience, and description. VentureLens AI provides your complete multi-dimensional analysis in seconds.
           </p>
           <div className="mt-6">

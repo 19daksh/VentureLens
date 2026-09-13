@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
+import { ThemeToggle } from './ThemeToggle';
 import {
   Compass,
   PlusCircle,
@@ -52,7 +53,7 @@ export const Navbar: React.FC = () => {
       ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+    <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand Logo */}
@@ -63,14 +64,14 @@ export const Navbar: React.FC = () => {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-lg text-slate-900 tracking-tight font-['Space_Grotesk',sans-serif]">
+                  <span className="font-extrabold text-lg text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
                     VentureLens
                   </span>
-                  <span className="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wide">
+                  <span className="bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wide border border-indigo-200 dark:border-indigo-800/60">
                     AI
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-500 font-medium tracking-tight -mt-0.5 hidden sm:inline">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tight -mt-0.5 hidden sm:inline">
                   Idea Validation Engine
                 </span>
               </div>
@@ -88,8 +89,8 @@ export const Navbar: React.FC = () => {
                     id={`nav-link-${link.name.toLowerCase().replace(/\s+/g, '-')}`}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
                     {Icon && <Icon className="w-4 h-4" />}
@@ -107,13 +108,16 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Theme Toggle Button */}
+            <ThemeToggle id="nav-theme-toggle-desktop" />
+
             {/* Supabase connection indicator pill */}
             <Link
               to="/settings"
               title={isConfiguredWithSupabase ? 'Connected to live Supabase PostgreSQL' : 'Local Storage mode (Configure Supabase in Settings)'}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
             >
-              <Database className="w-3.5 h-3.5 text-slate-500" />
+              <Database className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               <span className="text-[11px] hidden lg:inline">
                 {isConfiguredWithSupabase ? 'Supabase Live' : 'Supabase Ready'}
               </span>
@@ -136,16 +140,16 @@ export const Navbar: React.FC = () => {
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     id="nav-user-dropdown-btn"
-                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-left"
+                    className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left"
                   >
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs border border-indigo-200">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/80 text-indigo-700 dark:text-indigo-200 flex items-center justify-center font-bold text-xs border border-indigo-200 dark:border-indigo-700">
                       {profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase() || 'F'}
                     </div>
                     <div className="hidden xl:flex flex-col text-xs leading-tight">
-                      <span className="font-semibold text-slate-800 truncate max-w-[120px]">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
                         {profile?.full_name || 'Founder'}
                       </span>
-                      <span className="text-slate-500 text-[10px] truncate max-w-[120px]">
+                      <span className="text-slate-500 dark:text-slate-400 text-[10px] truncate max-w-[120px]">
                         {user.email}
                       </span>
                     </div>
@@ -153,19 +157,19 @@ export const Navbar: React.FC = () => {
 
                   {userMenuOpen && (
                     <div
-                      className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                      className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
                       onClick={() => setUserMenuOpen(false)}
                     >
-                      <div className="px-4 py-2 border-b border-slate-100">
-                        <p className="text-xs font-medium text-slate-500">Signed in as</p>
-                        <p className="text-xs font-semibold text-slate-900 truncate">{user.email}</p>
-                        <p className="text-[11px] text-indigo-600 font-medium mt-0.5">{profile?.organization || 'Founder'}</p>
+                      <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Signed in as</p>
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user.email}</p>
+                        <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">{profile?.organization || 'Founder'}</p>
                       </div>
 
                       <Link
                         to="/profile"
                         id="dropdown-link-profile"
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
                         <User className="w-4 h-4 text-slate-400" />
                         <span>Founder Profile</span>
@@ -174,20 +178,20 @@ export const Navbar: React.FC = () => {
                       <Link
                         to="/settings"
                         id="dropdown-link-settings"
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
                         <Settings className="w-4 h-4 text-slate-400" />
                         <span>Settings & Supabase</span>
                       </Link>
 
-                      <div className="border-t border-slate-100 my-1"></div>
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
 
                       <button
                         onClick={handleLogout}
                         id="dropdown-btn-logout"
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 text-left"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-left"
                       >
-                        <LogOut className="w-4 h-4 text-rose-500" />
+                        <LogOut className="w-4 h-4 text-rose-500 dark:text-rose-400" />
                         <span>Sign out</span>
                       </button>
                     </div>
@@ -199,7 +203,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/login"
                   id="nav-btn-login"
-                  className="text-slate-700 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
                 >
                   Log in
                 </Link>
@@ -216,10 +220,11 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile menu toggle */}
           <div className="flex md:hidden items-center gap-2">
+            <ThemeToggle id="nav-theme-toggle-mobile" />
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               id="mobile-menu-toggle-btn"
-              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
               aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -230,7 +235,7 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-slate-200 bg-white px-4 pt-2 pb-6 space-y-3">
+        <div className="md:hidden border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 pt-2 pb-6 space-y-3">
           <div className="space-y-1">
             {navLinks.map(link => (
               <Link
@@ -239,8 +244,8 @@ export const Navbar: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2 rounded-lg text-sm font-medium ${
                   isActive(link.path)
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 {link.name}
@@ -248,7 +253,7 @@ export const Navbar: React.FC = () => {
             ))}
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2">
             {user ? (
               <>
                 <Link
@@ -261,14 +266,14 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/profile"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-slate-700"
+                  className="block px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
                 >
                   Profile
                 </Link>
                 <Link
                   to="/settings"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-sm text-slate-700"
+                  className="block px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
                 >
                   Settings & DB
                 </Link>
@@ -277,7 +282,7 @@ export const Navbar: React.FC = () => {
                     handleLogout();
                     setMobileMenuOpen(false);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm font-medium text-rose-600"
+                  className="w-full text-left px-3 py-2 text-sm font-medium text-rose-600 dark:text-rose-400"
                 >
                   Sign out
                 </button>
@@ -287,7 +292,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center border border-slate-300 text-slate-700 py-2 rounded-lg text-sm font-medium"
+                  className="w-full text-center border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 py-2 rounded-lg text-sm font-medium"
                 >
                   Log in
                 </Link>

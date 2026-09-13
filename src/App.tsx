@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AnalysisProvider } from './context/AnalysisContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -29,12 +30,13 @@ import { SettingsPage } from './pages/SettingsPage';
 export default function App() {
   return (
     <Router>
-      <AuthProvider>
-        <AnalysisProvider>
-          <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 font-['Plus_Jakarta_Sans',sans-serif]">
-            <Navbar />
-            <main className="flex-1">
-              <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <AnalysisProvider>
+            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200">
+              <Navbar />
+              <main className="flex-1">
+                <Routes>
                 {/* Public Marketing & Information Routes */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/features" element={<FeaturesPage />} />
@@ -119,6 +121,7 @@ export default function App() {
           </div>
         </AnalysisProvider>
       </AuthProvider>
-    </Router>
+    </ThemeProvider>
+  </Router>
   );
 }
