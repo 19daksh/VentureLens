@@ -1,0 +1,222 @@
+-- ==========================================================
+-- VentureLens AI - Supabase & PostgreSQL Schema
+-- Complete DDL for 9 connected tables with RLS and Indexes
+-- ==========================================================
+
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. PROFILES TABLE
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  organization TEXT,
+  role TEXT DEFAULT 'Founder',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 2. STARTUP IDEAS TABLE
+CREATE TABLE IF NOT EXISTS public.startup_ideas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  industry TEXT NOT NULL,
+  target_audience TEXT NOT NULL,
+  additional_info TEXT,
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('draft', 'analyzing', 'completed', 'failed')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 3. ANALYSES TABLE (Core summary, scores, and verdict)
+CREATE TABLE IF NOT EXISTS public.analyses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  idea_id UUID NOT NULL REFERENCES public.startup_ideas(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  overall_score INTEGER NOT NULL CHECK (overall_score >= 0 AND overall_score <= 100),
+  verdict TEXT NOT NULL,
+  verdict_type TEXT NOT NULL CHECK (verdict_type IN ('Build', 'Improve', 'Pivot')),
+  confidence_indicator TEXT NOT NULL,
+  executive_summary TEXT NOT NULL,
+  problem_score INTEGER NOT NULL CHECK (problem_score >= 0 AND problem_score <= 100),
+  market_score INTEGER NOT NULL CHECK (market_score >= 0 AND market_score <= 100),
+  competition_score INTEGER NOT NULL CHECK (competition_score >= 0 AND competition_score <= 100),
+  revenue_score INTEGER NOT NULL CHECK (revenue_score >= 0 AND revenue_score <= 100),
+  technical_score INTEGER NOT NULL CHECK (technical_score >= 0 AND technical_score <= 100),
+  raw_gemini_response JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. MARKET ANALYSIS TABLE
+CREATE TABLE IF NOT EXISTS public.market_analysis (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  tam TEXT NOT NULL,
+  sam TEXT NOT NULL,
+  som TEXT NOT NULL,
+  demand_score INTEGER NOT NULL CHECK (demand_score >= 0 AND demand_score <= 100),
+  growth_potential TEXT NOT NULL,
+  market_trends JSONB NOT NULL DEFAULT '[]'::jsonb,
+  key_insights TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. COMPETITORS TABLE
+CREATE TABLE IF NOT EXISTS public.competitors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  strengths JSONB NOT NULL DEFAULT '[]'::jsonb,
+  weaknesses JSONB NOT NULL DEFAULT '[]'::jsonb,
+  target_customer TEXT NOT NULL,
+  differentiation_opportunity TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. BUSINESS MODELS TABLE
+CREATE TABLE IF NOT EXISTS public.business_models (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  recommended_model TEXT NOT NULL,
+  customer_segment TEXT NOT NULL,
+  pricing_strategy TEXT NOT NULL,
+  revenue_streams JSONB NOT NULL DEFAULT '[]'::jsonb,
+  monetization_strategy TEXT NOT NULL,
+  unit_economics TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. RISKS TABLE
+CREATE TABLE IF NOT EXISTS public.risks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  severity TEXT NOT NULL CHECK (severity IN ('Critical', 'High', 'Medium', 'Low')),
+  probability TEXT NOT NULL CHECK (probability IN ('High', 'Medium', 'Low')),
+  impact TEXT NOT NULL CHECK (impact IN ('High', 'Medium', 'Low')),
+  mitigation TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. MVP ROADMAP TABLE
+CREATE TABLE IF NOT EXISTS public.mvp_roadmap (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  phase_name TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  features JSONB NOT NULL DEFAULT '[]'::jsonb,
+  goal TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  is_must_have BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 9. RECOMMENDATIONS TABLE
+CREATE TABLE IF NOT EXISTS public.recommendations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  priority TEXT NOT NULL CHECK (priority IN ('Immediate', 'High', 'Medium', 'Low')),
+  category TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- ==========================================================
+-- INDEXES FOR MAXIMUM QUERY PERFORMANCE
+-- ==========================================================
+CREATE INDEX IF NOT EXISTS idx_startup_ideas_user_id ON public.startup_ideas(user_id);
+CREATE INDEX IF NOT EXISTS idx_startup_ideas_created_at ON public.startup_ideas(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analyses_idea_id ON public.analyses(idea_id);
+CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON public.analyses(user_id);
+CREATE INDEX IF NOT EXISTS idx_market_analysis_analysis_id ON public.market_analysis(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_competitors_analysis_id ON public.competitors(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_business_models_analysis_id ON public.business_models(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_risks_analysis_id ON public.risks(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_mvp_roadmap_analysis_id ON public.mvp_roadmap(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_recommendations_analysis_id ON public.recommendations(analysis_id);
+
+-- ==========================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- Ensures users can ONLY see, insert, modify, or delete their own data!
+-- ==========================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.startup_ideas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analyses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.market_analysis ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.competitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.business_models ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.risks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mvp_roadmap ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recommendations ENABLE ROW LEVEL SECURITY;
+
+-- Profiles Policies
+CREATE POLICY "Users can view own profile" ON public.profiles
+  FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Startup Ideas Policies
+CREATE POLICY "Users can view own ideas" ON public.startup_ideas
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create own ideas" ON public.startup_ideas
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own ideas" ON public.startup_ideas
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own ideas" ON public.startup_ideas
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Analyses Policies
+CREATE POLICY "Users can view own analyses" ON public.analyses
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own analyses" ON public.analyses
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own analyses" ON public.analyses
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Sub-tables Policies (Cascaded via analysis -> user_id)
+CREATE POLICY "Users can view own market analysis" ON public.market_analysis
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can view own competitors" ON public.competitors
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can view own business models" ON public.business_models
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can view own risks" ON public.risks
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can view own mvp roadmap" ON public.mvp_roadmap
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can view own recommendations" ON public.recommendations
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
+  );

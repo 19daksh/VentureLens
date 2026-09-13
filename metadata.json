@@ -1,0 +1,6 @@
+{
+  "name": "VentureLens AI",
+  "description": "Validate your idea before you build it. AI-powered startup idea validation platform analyzing market demand, competition, business model, technical feasibility, risks, and MVP planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

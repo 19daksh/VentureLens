@@ -1,0 +1,257 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useAnalysis } from '../context/AnalysisContext';
+import { ScoreBadge } from '../components/ScoreBadge';
+import { ComparisonRadarChart } from '../components/ComparisonRadarChart';
+import {
+  GitCompare,
+  ArrowLeft,
+  PlusCircle,
+  CheckCircle2,
+  AlertCircle,
+  Compass,
+  X,
+} from 'lucide-react';
+
+export const ComparePage: React.FC = () => {
+  const { ideas, selectedCompareIds, toggleCompareId, clearCompare } = useAnalysis();
+
+  // Selected ideas with full analyses
+  const selectedIdeas = ideas.filter(i => selectedCompareIds.includes(i.id));
+
+  return (
+    <div className="bg-slate-50 min-h-screen py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/dashboard"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight font-['Space_Grotesk',sans-serif]">
+                Multi-Idea Comparison
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 pl-8">
+              Compare 2 to 3 startup concepts head-to-head across market size, moat defensibility, and unit economics.
+            </p>
+          </div>
+
+          {selectedIdeas.length > 0 && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={clearCompare}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-3 py-1.5"
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Idea Selector Chips */}
+        <div className="my-6 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-slate-700">
+              Select concepts to benchmark (Max 3):
+            </span>
+            <span className="text-[11px] font-semibold text-indigo-600">
+              {selectedIdeas.length} / 3 selected
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {ideas.map(idea => {
+              const isSelected = selectedCompareIds.includes(idea.id);
+              return (
+                <button
+                  key={idea.id}
+                  id={`compare-toggle-btn-${idea.id}`}
+                  onClick={() => toggleCompareId(idea.id)}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{idea.title}</span>
+                  {idea.analysis?.overall_score !== undefined && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded font-extrabold ${
+                        isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {idea.analysis.overall_score}
+                    </span>
+                  )}
+                  {isSelected && <X className="w-3 h-3 ml-0.5 opacity-80" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedIdeas.length < 2 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+              <GitCompare className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">Select at least 2 startup ideas</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 leading-relaxed">
+              Click the idea pills above to add them to this side-by-side comparison radar and metrics matrix.
+            </p>
+            {ideas.length < 2 && (
+              <div className="mt-4">
+                <Link
+                  to="/new-analysis"
+                  className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Validate Another Idea</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Multi-Radar Comparison Chart */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Multi-Idea Radar Benchmark</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Compare performance across problem, market opportunity, moat, revenue, and technical feasibility.
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full pt-4">
+                <ComparisonRadarChart ideas={selectedIdeas} height={380} />
+              </div>
+            </div>
+
+            {/* Side-by-Side Comparison Matrix */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+              <div className="p-5 border-b border-slate-200 bg-slate-50/70">
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  Side-by-Side Diligence Matrix
+                </h3>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50/50 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
+                      <th className="p-4 w-48 shrink-0">Metric</th>
+                      {selectedIdeas.map(idea => (
+                        <th key={idea.id} className="p-4 min-w-[220px]">
+                          <div className="font-extrabold text-slate-900 text-xs">{idea.title}</div>
+                          <span className="text-[10px] text-indigo-600 normal-case font-semibold">{idea.industry}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {/* Overall Score */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Overall Score</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4">
+                          {idea.analysis?.overall_score !== undefined ? (
+                            <ScoreBadge score={idea.analysis.overall_score} size="md" />
+                          ) : (
+                            'N/A'
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Verdict */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Verdict</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4 font-semibold text-slate-800">
+                          {idea.analysis?.verdict || 'Pending'}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Problem Severity */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Problem Severity</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4 capitalize font-medium">
+                          {idea.analysis?.problem_validation?.pain_severity || 'Moderate'}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* TAM / SAM */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">TAM / SAM</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4">
+                          <p className="font-bold text-slate-900">{idea.analysis?.market_analysis?.tam || 'N/A'}</p>
+                          <p className="text-[11px] text-indigo-600 font-semibold">{idea.analysis?.market_analysis?.sam || 'N/A'}</p>
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Business Model */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Business Model</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4 font-medium">
+                          {idea.analysis?.business_model?.recommended_pricing || 'SaaS'}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* LTV : CAC */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">LTV : CAC Target</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4 font-bold text-emerald-600">
+                          {idea.analysis?.business_model?.ltv_cac_estimate || '4.0 : 1'}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Time to Build MVP */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Time to MVP</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4 font-medium">
+                          {idea.analysis?.technical_feasibility?.time_to_build || '4–8 Weeks'}
+                        </td>
+                      ))}
+                    </tr>
+
+                    {/* Actions */}
+                    <tr>
+                      <td className="p-4 font-bold text-slate-900 bg-slate-50/30">Detailed Report</td>
+                      {selectedIdeas.map(idea => (
+                        <td key={idea.id} className="p-4">
+                          <Link
+                            to={`/analysis/${idea.id}`}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                          >
+                            Open Full Analysis →
+                          </Link>
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
