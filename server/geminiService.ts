@@ -233,8 +233,8 @@ Verdict type must be strictly "Build", "Improve", or "Pivot".
 Evaluate early-stage concepts realistically. Look out for critical flaws, competitive moats, market timing, distribution friction, unit-economic bottlenecks, and technical risks.
 Offer pragmatic, prioritized advice that empowers founders to test assumptions before spending capital.`;
 
-  // Call Gemini model with automatic retry & fallback between flash models
-  const modelsToTry = ['gemini-flash-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+  // Call Gemini model with automatic retry & fallback across fast, highly-available models
+  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash'];
   let lastError: any = null;
   let response: any = null;
 
@@ -257,9 +257,9 @@ Offer pragmatic, prioritized advice that empowers founders to test assumptions b
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`[VentureLens AI] Model ${modelName} attempt ${attempt} notice:`, err?.message || err);
+        console.log(`[VentureLens AI] Model ${modelName} attempt ${attempt} notice:`, err?.message || err);
         // Backoff pause
-        await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
       }
     }
     if (response && response.text) {
