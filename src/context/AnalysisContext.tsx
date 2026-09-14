@@ -339,6 +339,65 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
           }
         }
+
+        if (rawAiData.business_model) {
+          try {
+            await supabase.from('business_models').insert({
+              analysis_id: analysisId,
+              recommended_model: String(rawAiData.business_model.recommended_business_model || 'Subscription SaaS'),
+              customer_segment: String(rawAiData.business_model.customer_segment || 'Target Customers'),
+              pricing_strategy: String(rawAiData.business_model.pricing_strategy || 'Value-based Pricing'),
+              revenue_streams: rawAiData.business_model.revenue_streams || [],
+              monetization_strategy: String(rawAiData.business_model.monetization_strategy || ''),
+              unit_economics: String(rawAiData.business_model.unit_economics_considerations || 'Favorable unit economics projected'),
+            });
+          } catch (err) {
+            console.warn('business_models sub-table insert notice:', err);
+          }
+        }
+
+        if (rawAiData.mvp_roadmap?.phases && Array.isArray(rawAiData.mvp_roadmap.phases)) {
+          for (const p of rawAiData.mvp_roadmap.phases) {
+            try {
+              await supabase.from('mvp_roadmap').insert({
+                analysis_id: analysisId,
+                phase_name: String(p.phase || 'Phase 1'),
+                duration: String(p.duration || '3 Months'),
+                features: p.features || [],
+                goal: String(p.goal || 'Validate core value proposition'),
+                priority: String(p.priority || 'High'),
+                is_must_have: p.priority === 'Critical' || p.priority === 'High',
+              });
+            } catch (err) {
+              console.warn('mvp_roadmap sub-table insert notice:', err);
+            }
+          }
+        }
+
+        if (rawAiData.recommendations && Array.isArray(rawAiData.recommendations)) {
+          for (const rec of rawAiData.recommendations) {
+            const capitalize = (val?: string, fallback: string = 'High') => {
+              if (!val) return fallback;
+              return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+            };
+
+            const recPriority = ['Immediate', 'High', 'Medium', 'Low'].includes(capitalize(rec.priority))
+              ? capitalize(rec.priority)
+              : 'High';
+
+            try {
+              await supabase.from('recommendations').insert({
+                analysis_id: analysisId,
+                action: String(rec.action || 'Key Action'),
+                priority: recPriority,
+                category: String(rec.category || 'General'),
+                reason: String(rec.reason || ''),
+              });
+            } catch (err) {
+              console.warn('recommendations sub-table insert notice:', err);
+            }
+          }
+        }
       } else {
         // Only save locally if Supabase is NOT configured
         localDb.saveIdea({ ...newIdea, status: 'completed' });

@@ -187,36 +187,148 @@ CREATE POLICY "Users can view own analyses" ON public.analyses
 CREATE POLICY "Users can insert own analyses" ON public.analyses
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can update own analyses" ON public.analyses
+  FOR UPDATE USING (auth.uid() = user_id);
+
 CREATE POLICY "Users can delete own analyses" ON public.analyses
   FOR DELETE USING (auth.uid() = user_id);
 
--- Sub-tables Policies (Cascaded via analysis -> user_id)
+-- Sub-tables Policies (Ownership verified via parent analysis -> analyses.user_id = auth.uid())
+
+-- 4. Market Analysis Policies
 CREATE POLICY "Users can view own market analysis" ON public.market_analysis
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
   );
 
+CREATE POLICY "Users can insert own market analysis" ON public.market_analysis
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own market analysis" ON public.market_analysis
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own market analysis" ON public.market_analysis
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = market_analysis.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+-- 5. Competitors Policies
 CREATE POLICY "Users can view own competitors" ON public.competitors
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
   );
 
+CREATE POLICY "Users can insert own competitors" ON public.competitors
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own competitors" ON public.competitors
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own competitors" ON public.competitors
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = competitors.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+-- 6. Business Models Policies
 CREATE POLICY "Users can view own business models" ON public.business_models
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
   );
 
+CREATE POLICY "Users can insert own business models" ON public.business_models
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own business models" ON public.business_models
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own business models" ON public.business_models
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = business_models.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+-- 7. Risks Policies
 CREATE POLICY "Users can view own risks" ON public.risks
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
   );
 
+CREATE POLICY "Users can insert own risks" ON public.risks
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own risks" ON public.risks
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own risks" ON public.risks
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = risks.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+-- 8. MVP Roadmap Policies
 CREATE POLICY "Users can view own mvp roadmap" ON public.mvp_roadmap
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
   );
 
+CREATE POLICY "Users can insert own mvp roadmap" ON public.mvp_roadmap
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own mvp roadmap" ON public.mvp_roadmap
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own mvp roadmap" ON public.mvp_roadmap
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = mvp_roadmap.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+-- 9. Recommendations Policies
 CREATE POLICY "Users can view own recommendations" ON public.recommendations
   FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can insert own recommendations" ON public.recommendations
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can update own recommendations" ON public.recommendations
+  FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
+  ) WITH CHECK (
+    EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
+  );
+
+CREATE POLICY "Users can delete own recommendations" ON public.recommendations
+  FOR DELETE USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
   );
