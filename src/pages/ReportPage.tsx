@@ -187,9 +187,9 @@ export const ReportPage: React.FC = () => {
               4. Business Model & Unit Economics
             </h3>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-xl border border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs text-slate-700 dark:text-slate-300 print:text-slate-700 space-y-1.5">
-              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Monetization Architecture:</strong> {analysis.business_model?.recommended_pricing}</p>
-              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">LTV : CAC Benchmark:</strong> {analysis.business_model?.ltv_cac_estimate}</p>
-              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Target Gross Margins:</strong> {analysis.business_model?.gross_margin_estimate}</p>
+              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Monetization Architecture:</strong> {analysis.business_model?.recommended_business_model || (analysis.business_model as any)?.recommended_pricing || 'B2B SaaS / Tiered Subscription'}</p>
+              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Pricing Strategy:</strong> {analysis.business_model?.pricing_strategy || 'Value-Based Pricing'}</p>
+              <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Target Segment:</strong> {analysis.business_model?.customer_segment || 'SMBs & Early Adopters'}</p>
             </div>
           </div>
 
@@ -233,8 +233,13 @@ export const ReportPage: React.FC = () => {
               7. Strategic Synthesis
             </h3>
             <p className="text-xs text-slate-800 dark:text-slate-200 print:text-slate-800 leading-relaxed font-medium">
-              {analysis.final_verdict}
+              {typeof analysis.final_verdict === 'object' ? (analysis.final_verdict as any).verdict : analysis.final_verdict}
             </p>
+            {typeof analysis.final_verdict === 'object' && (analysis.final_verdict as any).recommended_next_step && (
+              <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-2">
+                <strong>Next Milestone:</strong> {(analysis.final_verdict as any).recommended_next_step}
+              </p>
+            )}
           </div>
 
           {/* Memo Footer */}

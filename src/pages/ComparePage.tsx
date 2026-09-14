@@ -185,7 +185,7 @@ export const ComparePage: React.FC = () => {
                       <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Problem Severity</td>
                       {selectedIdeas.map(idea => (
                         <td key={idea.id} className="p-4 capitalize font-medium">
-                          {idea.analysis?.problem_validation?.pain_severity || 'Moderate'}
+                          {idea.analysis?.problem_validation?.problem_severity || (idea.analysis?.problem_validation as any)?.pain_severity || 'High'}
                         </td>
                       ))}
                     </tr>
@@ -206,27 +206,27 @@ export const ComparePage: React.FC = () => {
                       <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Business Model</td>
                       {selectedIdeas.map(idea => (
                         <td key={idea.id} className="p-4 font-medium">
-                          {idea.analysis?.business_model?.recommended_pricing || 'SaaS'}
+                          {idea.analysis?.business_model?.recommended_business_model || (idea.analysis?.business_model as any)?.recommended_pricing || 'B2B SaaS'}
                         </td>
                       ))}
                     </tr>
 
-                    {/* LTV : CAC */}
+                    {/* Pricing Strategy */}
                     <tr>
-                      <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">LTV : CAC Target</td>
+                      <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Pricing Strategy</td>
                       {selectedIdeas.map(idea => (
                         <td key={idea.id} className="p-4 font-bold text-emerald-600 dark:text-emerald-400">
-                          {idea.analysis?.business_model?.ltv_cac_estimate || '4.0 : 1'}
+                          {idea.analysis?.business_model?.pricing_strategy || (idea.analysis?.business_model as any)?.ltv_cac_estimate || 'Value-Based'}
                         </td>
                       ))}
                     </tr>
 
-                    {/* Time to Build MVP */}
+                    {/* Technical Feasibility */}
                     <tr>
-                      <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Time to MVP</td>
+                      <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Architecture Complexity</td>
                       {selectedIdeas.map(idea => (
-                        <td key={idea.id} className="p-4 font-medium">
-                          {idea.analysis?.technical_feasibility?.time_to_build || '4–8 Weeks'}
+                        <td key={idea.id} className="p-4 font-medium capitalize">
+                          {idea.analysis?.technical_feasibility?.complexity || (idea.analysis?.technical_feasibility as any)?.time_to_build || 'Moderate'}
                         </td>
                       ))}
                     </tr>

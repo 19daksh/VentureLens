@@ -33,7 +33,7 @@ export const AnalysisDetailPage: React.FC = () => {
   const { getIdeaById, deleteIdea, toggleCompareId, selectedCompareIds } = useAnalysis();
 
   const [activeTab, setActiveTab] = useState<
-    'problem' | 'market' | 'competitors' | 'business' | 'tech' | 'risks' | 'mvp' | 'recommendations'
+    'problem' | 'market' | 'competitors' | 'business' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
   >('problem');
 
   const idea = id ? getIdeaById(id) : null;
@@ -42,13 +42,13 @@ export const AnalysisDetailPage: React.FC = () => {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4 text-center">
         <Compass className="w-12 h-12 text-slate-300 mb-3" />
-        <h2 className="text-xl font-bold text-slate-900">Analysis not found</h2>
-        <p className="text-xs text-slate-500 mt-1 max-w-sm">
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Analysis not found</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
           The requested startup evaluation could not be located or was removed.
         </p>
         <Link
           to="/dashboard"
-          className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+          className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Dashboard</span>
@@ -70,32 +70,26 @@ export const AnalysisDetailPage: React.FC = () => {
   };
 
   const getVerdictTheme = (type?: string) => {
-    switch (type) {
-      case 'strong_build':
-        return {
-          badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          title: 'Strong Build Signal',
-          description: 'High market demand, clear customer pain, and defensible economics.',
-        };
-      case 'build_with_caution':
-        return {
-          badge: 'bg-blue-50 text-blue-700 border-blue-200',
-          title: 'Promising Opportunity (With Caveats)',
-          description: 'Solid core premise, but requires tighter positioning or moat refinement.',
-        };
-      case 'improve':
-        return {
-          badge: 'bg-amber-50 text-amber-700 border-amber-200',
-          title: 'Requires Improvement',
-          description: 'Significant competitive overlap or unproven customer willingness-to-pay.',
-        };
-      default:
-        return {
-          badge: 'bg-rose-50 text-rose-700 border-rose-200',
-          title: 'Pivot Advised',
-          description: 'Substantial structural headwinds, commoditized alternatives, or high execution friction.',
-        };
+    const normalized = (type || '').toLowerCase();
+    if (normalized.includes('build') || normalized === 'strong_build' || normalized === 'build_with_caution') {
+      return {
+        badge: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        title: 'Build Signal',
+        description: 'High market demand, clear customer pain, and defensible economics.',
+      };
     }
+    if (normalized.includes('improve')) {
+      return {
+        badge: 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        title: 'Requires Improvement',
+        description: 'Significant competitive overlap or unproven customer willingness-to-pay.',
+      };
+    }
+    return {
+      badge: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+      title: 'Pivot Advised',
+      description: 'Substantial structural headwinds, commoditized alternatives, or high execution friction.',
+    };
   };
 
   const verdictTheme = getVerdictTheme(analysis?.verdict_type);
@@ -264,7 +258,8 @@ export const AnalysisDetailPage: React.FC = () => {
                 { id: 'tech', label: '5. Tech Architecture', icon: Cpu },
                 { id: 'risks', label: '6. Risk Matrix', icon: ShieldAlert },
                 { id: 'mvp', label: '7. MVP Roadmap', icon: Rocket },
-                { id: 'recommendations', label: '8. Next Steps', icon: Sparkles },
+                { id: 'gtm', label: '8. Go-To-Market', icon: Compass },
+                { id: 'recommendations', label: '9. Next Steps', icon: Sparkles },
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -301,9 +296,9 @@ export const AnalysisDetailPage: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Pain Severity</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Problem Severity</p>
                       <p className="text-base font-bold text-slate-900 dark:text-white mt-1 capitalize">
-                        {analysis.problem_validation?.pain_severity || 'High'}
+                        {analysis.problem_validation?.problem_severity || (analysis.problem_validation as any)?.pain_severity || 'High'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
@@ -313,48 +308,49 @@ export const AnalysisDetailPage: React.FC = () => {
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Willingness to Pay</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Problem Score</p>
                       <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 capitalize">
-                        {analysis.problem_validation?.willingness_to_pay || 'High'}
+                        {analysis.problem_validation?.problem_strength_score ?? analysis.problem_score}/100
                       </p>
                     </div>
                   </div>
 
                   <div>
                     <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                      Customer Problem Analysis
+                      Customer Problem Analysis & Insights
                     </h4>
                     <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
-                      {analysis.problem_validation?.description || idea.description}
+                      {analysis.problem_validation?.validation_insights || (analysis.problem_validation as any)?.description || idea.description}
                     </p>
                   </div>
 
-                  {analysis.problem_validation?.existing_workarounds && analysis.problem_validation.existing_workarounds.length > 0 && (
+                  {analysis.problem_validation?.customer_pain_points && analysis.problem_validation.customer_pain_points.length > 0 && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                        Existing Workarounds & Flaws
+                        Validated Customer Pain Points
                       </h4>
                       <div className="space-y-2">
-                        {analysis.problem_validation.existing_workarounds.map((w, idx) => (
-                          <div key={idx} className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                            <span>{w}</span>
+                        {analysis.problem_validation.customer_pain_points.map((pt, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                            <span>{pt}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {analysis.problem_validation?.validation_hypotheses && (
+                  {((analysis.problem_validation?.existing_alternatives && analysis.problem_validation.existing_alternatives.length > 0) ||
+                    ((analysis.problem_validation as any)?.existing_workarounds && (analysis.problem_validation as any).existing_workarounds.length > 0)) && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                        Hypotheses to Validate in Customer Interviews
+                        Existing Alternatives & Competitor Workarounds
                       </h4>
                       <div className="space-y-2">
-                        {analysis.problem_validation.validation_hypotheses.map((h, idx) => (
-                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                            <span>{h}</span>
+                        {(analysis.problem_validation?.existing_alternatives || (analysis.problem_validation as any)?.existing_workarounds || []).map((w: string, idx: number) => (
+                          <div key={idx} className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <span>{w}</span>
                           </div>
                         ))}
                       </div>
@@ -446,10 +442,22 @@ export const AnalysisDetailPage: React.FC = () => {
                       Strategic Defensibility & Moat
                     </h4>
                     <p className="text-xs text-indigo-800 dark:text-indigo-300 mt-1 leading-relaxed">
-                      {analysis.competitor_analysis?.moat_potential ||
-                        'Defensibility rests on data network effects, customer workflow integration, and proprietary fine-tuned models.'}
+                      {analysis.competitor_analysis?.differentiation_strategy ||
+                        (analysis.competitor_analysis as any)?.moat_potential ||
+                        'Defensibility rests on proprietary data, targeted customer workflow integration, and distinct positioning.'}
                     </p>
                   </div>
+
+                  {analysis.competitor_analysis?.competitive_landscape_summary && (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-1">
+                        Competitive Landscape Overview
+                      </h4>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {analysis.competitor_analysis.competitive_landscape_summary}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Competitor Battlecards */}
                   <div className="space-y-4">
@@ -512,30 +520,52 @@ export const AnalysisDetailPage: React.FC = () => {
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Pricing Model</p>
                       <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
-                        {analysis.business_model?.recommended_pricing || 'Subscription / B2B SaaS'}
+                        {analysis.business_model?.recommended_business_model || (analysis.business_model as any)?.recommended_pricing || 'Subscription / B2B SaaS'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Estimated LTV : CAC</p>
-                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                        {analysis.business_model?.ltv_cac_estimate || '4.5 : 1 Target'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Gross Margin Target</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Pricing Strategy</p>
                       <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                        {analysis.business_model?.gross_margin_estimate || '75% - 85%'}
+                        {analysis.business_model?.pricing_strategy || 'Value-Based Pricing'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Target Segment</p>
+                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                        {analysis.business_model?.customer_segment || 'Early Adopters & SMBs'}
                       </p>
                     </div>
                   </div>
 
-                  {analysis.business_model?.pricing_tiers && (
+                  {analysis.business_model?.monetization_strategy && (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-1">
+                        Monetization Strategy
+                      </h4>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {analysis.business_model.monetization_strategy}
+                      </p>
+                    </div>
+                  )}
+
+                  {analysis.business_model?.unit_economics_considerations && (
+                    <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60">
+                      <h4 className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider mb-1">
+                        Unit Economics Considerations
+                      </h4>
+                      <p className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                        {analysis.business_model.unit_economics_considerations}
+                      </p>
+                    </div>
+                  )}
+
+                  {(analysis.business_model as any)?.pricing_tiers && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3">
                         Suggested Pricing Tiers
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {analysis.business_model.pricing_tiers.map((tier, idx) => (
+                        {(analysis.business_model as any).pricing_tiers.map((tier: any, idx: number) => (
                           <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
                             <p className="text-xs font-bold text-slate-900 dark:text-white">{tier.name}</p>
                             <p className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">{tier.price}</p>
@@ -570,7 +600,7 @@ export const AnalysisDetailPage: React.FC = () => {
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Technical Feasibility & Architecture</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Complexity evaluation, stack guidance, and bottleneck discovery</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Complexity evaluation, stack guidance, and scalability discovery</p>
                     </div>
                     <ScoreBadge score={analysis.technical_score} size="md" />
                   </div>
@@ -583,40 +613,60 @@ export const AnalysisDetailPage: React.FC = () => {
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Time to Initial Prototype</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Feasibility Score</p>
                       <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-1">
-                        {analysis.technical_feasibility?.time_to_build || '4–8 Weeks'}
+                        {analysis.technical_feasibility?.technical_feasibility_score ?? analysis.technical_score}/100
                       </p>
                     </div>
                   </div>
 
-                  {analysis.technical_feasibility?.recommended_stack && (
+                  {analysis.technical_feasibility?.recommended_technology_direction && (
+                    <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60">
+                      <h4 className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider mb-1">
+                        Recommended Technology Direction
+                      </h4>
+                      <p className="text-xs text-indigo-800 dark:text-indigo-300 leading-relaxed">
+                        {analysis.technical_feasibility.recommended_technology_direction}
+                      </p>
+                    </div>
+                  )}
+
+                  {analysis.technical_feasibility?.major_technical_requirements && analysis.technical_feasibility.major_technical_requirements.length > 0 && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                        Recommended Technology Stack
+                        Major Technical Requirements
                       </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {analysis.technical_feasibility.recommended_stack.map((tech, idx) => (
-                          <span
-                            key={idx}
-                            className="bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold px-3 py-1 rounded-lg"
-                          >
-                            {tech}
-                          </span>
+                      <div className="space-y-2">
+                        {analysis.technical_feasibility.major_technical_requirements.map((req, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <Cpu className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                            <span>{req}</span>
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {analysis.technical_feasibility?.key_challenges && (
+                  {analysis.technical_feasibility?.scalability_considerations && (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-1">
+                        Scalability Considerations
+                      </h4>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {analysis.technical_feasibility.scalability_considerations}
+                      </p>
+                    </div>
+                  )}
+
+                  {analysis.technical_feasibility?.technical_risks && analysis.technical_feasibility.technical_risks.length > 0 && (
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
-                        Key Engineering & Scaling Challenges
+                        Technical Risks & Challenges
                       </h4>
                       <div className="space-y-2">
-                        {analysis.technical_feasibility.key_challenges.map((c, idx) => (
-                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
-                            <Cpu className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
+                        {analysis.technical_feasibility.technical_risks.map((c, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/40 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
                             <span>{c}</span>
                           </div>
                         ))}
@@ -652,9 +702,9 @@ export const AnalysisDetailPage: React.FC = () => {
                             </span>
                             <span
                               className={`text-[11px] font-bold px-2 py-0.5 rounded uppercase ${
-                                risk.severity === 'critical'
+                                String(risk.severity).toLowerCase() === 'critical'
                                   ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300'
-                                  : risk.severity === 'high'
+                                  : String(risk.severity).toLowerCase() === 'high'
                                   ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
                                   : 'bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300'
                               }`}
@@ -740,33 +790,111 @@ export const AnalysisDetailPage: React.FC = () => {
                         Phase Execution Sequence
                       </h4>
                       <div className="space-y-4">
-                        {analysis.mvp_roadmap.phases.map((phase, idx) => (
-                          <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex flex-col sm:flex-row gap-4 items-start">
-                            <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center shrink-0 text-sm">
-                              0{idx + 1}
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <h5 className="text-sm font-bold text-slate-900 dark:text-white">{phase.phase_name}</h5>
-                                <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{phase.duration}</span>
+                        {analysis.mvp_roadmap.phases.map((phase: any, idx: number) => {
+                          const phaseName = phase.phase || phase.phase_name || `Phase ${idx + 1}`;
+                          return (
+                            <div key={idx} className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex flex-col sm:flex-row gap-4 items-start">
+                              <div className="w-10 h-10 rounded-lg bg-indigo-600 text-white font-bold flex items-center justify-center shrink-0 text-sm">
+                                0{idx + 1}
                               </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{phase.goal}</p>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="text-sm font-bold text-slate-900 dark:text-white">{phaseName}</h5>
+                                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">{phase.duration}</span>
+                                </div>
+                                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">{phase.goal}</p>
+                                {phase.features && phase.features.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 mt-2">
+                                    {phase.features.map((feat: string, fIdx: number) => (
+                                      <span key={fIdx} className="text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded">
+                                        {feat}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* TAB 8: Next Steps & Final Recommendations */}
+              {/* TAB 8: Go-To-Market */}
+              {activeTab === 'gtm' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">Go-To-Market & Distribution Strategy</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Early beachhead customer acquisition, channel economics, and positioning</p>
+                    </div>
+                    <ScoreBadge score={analysis.overall_score} size="md" />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">Initial Beachhead Customer</p>
+                      <p className="text-xs font-semibold text-slate-900 dark:text-white mt-1 leading-relaxed">
+                        {analysis.go_to_market?.initial_target_customer || 'Early adopter niche buyers with urgent unmet workflows'}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60">
+                      <p className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase">Market Positioning</p>
+                      <p className="text-xs font-semibold text-indigo-950 dark:text-indigo-200 mt-1 leading-relaxed">
+                        {analysis.go_to_market?.positioning || 'Precision purpose-built solution replacing fragmented manual tools'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {analysis.go_to_market?.acquisition_channels && analysis.go_to_market.acquisition_channels.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
+                        Primary Customer Acquisition Channels
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {analysis.go_to_market.acquisition_channels.map((ch, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                            <Rocket className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                            <span>{ch}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {analysis.go_to_market?.launch_strategy && (
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
+                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-1">
+                        Recommended Launch Playbook
+                      </h4>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {analysis.go_to_market.launch_strategy}
+                      </p>
+                    </div>
+                  )}
+
+                  {analysis.go_to_market?.early_validation_strategy && (
+                    <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/60">
+                      <h4 className="text-xs font-bold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider mb-1">
+                        Early Validation & Traction Loop
+                      </h4>
+                      <p className="text-xs text-emerald-950 dark:text-emerald-200 leading-relaxed">
+                        {analysis.go_to_market.early_validation_strategy}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 9: Next Steps & Final Recommendations */}
               {activeTab === 'recommendations' && (
                 <div className="space-y-6 animate-in fade-in">
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Next Steps & Founder Action Plan</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Direct prescriptive actions for the next 14 days</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Direct prescriptive actions to de-risk and validate</p>
                     </div>
                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-900/60 px-3 py-1 rounded-full">
                       Action Items
@@ -777,21 +905,50 @@ export const AnalysisDetailPage: React.FC = () => {
                     <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                       Immediate Priority Actions
                     </h4>
-                    {analysis.recommendations?.map((rec, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex items-start gap-3 text-xs text-slate-800 dark:text-slate-200"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0 text-xs mt-0.5">
-                          {idx + 1}
+                    {analysis.recommendations?.map((rec: any, idx: number) => {
+                      const isObj = typeof rec === 'object' && rec !== null;
+                      const actionText = isObj ? rec.action : String(rec);
+                      const priority = isObj ? rec.priority : 'Immediate';
+                      const category = isObj ? rec.category : 'General';
+                      const reason = isObj ? rec.reason : null;
+
+                      return (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex flex-col gap-2 text-xs text-slate-800 dark:text-slate-200"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center shrink-0 text-xs">
+                                {idx + 1}
+                              </div>
+                              <span className="font-semibold text-slate-900 dark:text-white">{actionText}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900/60">
+                                {category}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                String(priority).toLowerCase() === 'immediate'
+                                  ? 'bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300'
+                                  : 'bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300'
+                              }`}>
+                                {priority}
+                              </span>
+                            </div>
+                          </div>
+                          {reason && (
+                            <p className="text-slate-500 dark:text-slate-400 pl-7 text-[11px] leading-relaxed">
+                              {reason}
+                            </p>
+                          )}
                         </div>
-                        <span className="leading-relaxed mt-0.5">{rec}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {analysis.final_verdict && (
-                    <div className="mt-8 p-6 rounded-2xl bg-indigo-950 text-white shadow-lg space-y-3 border border-indigo-900">
+                    <div className="mt-8 p-6 rounded-2xl bg-indigo-950 text-white shadow-lg space-y-4 border border-indigo-900">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-indigo-400" />
                         <h4 className="text-sm font-bold tracking-tight font-['Space_Grotesk',sans-serif]">
@@ -799,8 +956,25 @@ export const AnalysisDetailPage: React.FC = () => {
                         </h4>
                       </div>
                       <p className="text-xs sm:text-sm text-indigo-100 leading-relaxed font-normal">
-                        {analysis.final_verdict}
+                        {typeof analysis.final_verdict === 'object' ? analysis.final_verdict.verdict : analysis.final_verdict}
                       </p>
+
+                      {typeof analysis.final_verdict === 'object' && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
+                          {analysis.final_verdict.recommended_next_step && (
+                            <div className="p-3 rounded-lg bg-indigo-900/60 border border-indigo-800 col-span-full">
+                              <strong className="text-indigo-300 block text-[10px] uppercase font-bold tracking-wider">Recommended Next Step:</strong>
+                              <span className="text-indigo-100 mt-1 block">{analysis.final_verdict.recommended_next_step}</span>
+                            </div>
+                          )}
+                          {analysis.final_verdict.biggest_risk && (
+                            <div className="p-3 rounded-lg bg-indigo-900/60 border border-indigo-800 col-span-full">
+                              <strong className="text-rose-300 block text-[10px] uppercase font-bold tracking-wider">Primary Risk to De-Risk:</strong>
+                              <span className="text-indigo-100 mt-1 block">{analysis.final_verdict.biggest_risk}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
