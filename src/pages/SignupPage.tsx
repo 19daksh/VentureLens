@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Compass, AlertCircle, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Compass, AlertCircle, Loader2, ArrowRight, CheckCircle2, UserCheck } from 'lucide-react';
 
 export const SignupPage: React.FC = () => {
   const { signUp } = useAuth();

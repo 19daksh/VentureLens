@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured, localDb } from '../lib/supabase';
 import { AuthUser, UserProfile } from '../types/auth';
 
+export const isUuid = (val?: string): boolean =>
+  Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val));
+
 interface AuthContextType {
   user: AuthUser | null;
   profile: UserProfile | null;
@@ -35,10 +38,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setUser(authUser);
             await fetchOrCreateProfile(session.user.id, session.user.email || '', session.user.user_metadata?.full_name);
+          } else {
+            // Check if there is a stored local or demo session
+            const stored = localStorage.getItem('venturelens_auth_user');
+            if (stored) {
+              try {
+                const u: AuthUser = JSON.parse(stored);
+                setUser(u);
+                await fetchOrCreateProfile(u.id, u.email, u.user_metadata?.full_name);
+              } catch (err) {
+                console.error('Error parsing stored session:', err);
+              }
+            }
           }
 
           // Listen for auth changes
-          const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+          const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
               const u: AuthUser = {
                 id: session.user.id,
@@ -46,8 +61,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 user_metadata: session.user.user_metadata,
               };
               setUser(u);
+              localStorage.setItem('venturelens_auth_user', JSON.stringify(u));
               await fetchOrCreateProfile(u.id, u.email, u.user_metadata?.full_name);
-            } else {
+            } else if (event === 'SIGNED_OUT') {
+              localStorage.removeItem('venturelens_auth_user');
               setUser(null);
               setProfile(null);
             }
@@ -64,22 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
               const u: AuthUser = JSON.parse(storedUser);
               setUser(u);
-              const p = localDb.getProfile(u.id);
-              if (p) {
-                setProfile(p);
-              } else {
-                const newProfile: UserProfile = {
-                  id: u.id,
-                  email: u.email,
-                  full_name: u.user_metadata?.full_name || 'Founder',
-                  organization: u.user_metadata?.organization || 'Stealth Startup',
-                  role: 'Founder',
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                };
-                localDb.saveProfile(newProfile);
-                setProfile(newProfile);
-              }
+              await fetchOrCreateProfile(u.id, u.email, u.user_metadata?.full_name);
             } catch (err) {
               console.error('Error restoring local user:', err);
             }
@@ -96,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   async function fetchOrCreateProfile(userId: string, email: string, fullName?: string) {
-    if (isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase && isUuid(userId)) {
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -106,8 +108,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (data && !error) {
           setProfile(data as UserProfile);
+          return;
         } else {
-          // Create profile record
+          // Create profile record in Supabase
           const newProfile: UserProfile = {
             id: userId,
             email,
@@ -117,30 +120,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          await supabase.from('profiles').upsert(newProfile);
-          setProfile(newProfile);
+          const { error: upsertErr } = await supabase.from('profiles').upsert(newProfile);
+          if (!upsertErr) {
+            setProfile(newProfile);
+            return;
+          }
         }
       } catch (err) {
         console.warn('Could not query Supabase profile table directly, using local fallback:', err);
-        const p = localDb.getProfile(userId);
-        if (p) setProfile(p);
       }
-    } else {
-      let p = localDb.getProfile(userId);
-      if (!p) {
-        p = {
-          id: userId,
-          email,
-          full_name: fullName || 'Founder',
-          organization: 'Early Stage Venture',
-          role: 'Founder',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        localDb.saveProfile(p);
-      }
-      setProfile(p);
     }
+
+    // Local profile fallback
+    let p = localDb.getProfile(userId);
+    if (!p) {
+      p = {
+        id: userId,
+        email,
+        full_name: fullName || 'Founder',
+        organization: 'Early Stage Venture',
+        role: 'Founder',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      localDb.saveProfile(p);
+    }
+    setProfile(p);
   }
 
   // Sign up
@@ -158,7 +163,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
         });
 
-        if (error) return { error: error.message };
+        if (error) {
+          if (error.message.includes('rate limit') || error.message.includes('rate_limit')) {
+            return {
+              error: 'Supabase email rate limit exceeded (free tier built-in SMTP). To enable instant unlimited signups, open your Supabase Dashboard -> Authentication -> Providers -> Email, and toggle OFF "Confirm email". In the meantime, you can log in using "Try Demo Account" on the login page.',
+            };
+          }
+          return { error: error.message };
+        }
 
         if (data.user) {
           const authUser: AuthUser = {
@@ -167,12 +179,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             user_metadata: { full_name: fullName, organization },
           };
           setUser(authUser);
+          localStorage.setItem('venturelens_auth_user', JSON.stringify(authUser));
           await fetchOrCreateProfile(data.user.id, email, fullName);
         }
         return {};
       } else {
         // Local account creation
-        const newId = 'user_' + Math.random().toString(36).substring(2, 10);
+        const newId = crypto.randomUUID();
         const authUser: AuthUser = {
           id: newId,
           email,
@@ -211,17 +224,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           password,
         });
 
-        if (error) return { error: error.message };
-
-        if (data.user) {
+        if (!error && data.user) {
           const authUser: AuthUser = {
             id: data.user.id,
             email: data.user.email || email,
             user_metadata: data.user.user_metadata,
           };
           setUser(authUser);
+          localStorage.setItem('venturelens_auth_user', JSON.stringify(authUser));
           await fetchOrCreateProfile(data.user.id, email, data.user.user_metadata?.full_name);
+          return {};
         }
+
+        // Demo account fallback if not provisioned in Supabase auth yet
+        if (email === 'founder@venturelens.ai') {
+          const demoUser: AuthUser = {
+            id: '00000000-0000-4000-8000-000000000001',
+            email: 'founder@venturelens.ai',
+            user_metadata: { full_name: 'Demo Founder', organization: 'Stealth Ventures' },
+          };
+          setUser(demoUser);
+          localStorage.setItem('venturelens_auth_user', JSON.stringify(demoUser));
+          await fetchOrCreateProfile(demoUser.id, demoUser.email, 'Demo Founder');
+          return {};
+        }
+
+        if (error) return { error: error.message };
         return {};
       } else {
         // Local sign in
@@ -231,13 +259,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (existing) {
           const parsed = JSON.parse(existing);
           authUser = {
-            id: parsed.id,
+            id: parsed.id || crypto.randomUUID(),
             email: email,
             user_metadata: parsed.user_metadata || { full_name: 'Founder' },
           };
         } else {
           authUser = {
-            id: 'founder_active_session',
+            id: crypto.randomUUID(),
             email: email,
             user_metadata: { full_name: email.split('@')[0] || 'Venture Founder' },
           };
@@ -303,7 +331,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updated_at: new Date().toISOString(),
       };
 
-      if (isSupabaseConfigured && supabase) {
+      if (isSupabaseConfigured && supabase && isUuid(user.id)) {
         const { error } = await supabase
           .from('profiles')
           .update(updates)
