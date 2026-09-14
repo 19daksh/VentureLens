@@ -16,7 +16,7 @@ import {
 
 export const ReportPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { getIdeaById } = useAnalysis();
+  const { getIdeaById, loading } = useAnalysis();
 
   const idea = id ? getIdeaById(id) : null;
   const analysis = idea?.analysis;
@@ -24,6 +24,15 @@ export const ReportPage: React.FC = () => {
   const handlePrint = () => {
     window.print();
   };
+
+  if (loading && (!idea || !analysis)) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-3" />
+        <p className="text-xs text-slate-500">Loading investor memo...</p>
+      </div>
+    );
+  }
 
   if (!idea || !analysis) {
     return (

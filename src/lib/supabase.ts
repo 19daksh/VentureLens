@@ -31,8 +31,9 @@ const STORAGE_KEYS = {
   PROFILES: 'venturelens_profiles',
 };
 
-// Seed sample startup idea if clean install so the user can immediately test Compare, History, and Reports!
+// No mock data is seeded for the main application flow
 export function seedInitialDataIfEmpty(userId: string) {
+  return;
   try {
     const existingIdeas = localStorage.getItem(STORAGE_KEYS.IDEAS);
     if (!existingIdeas || JSON.parse(existingIdeas).length === 0) {

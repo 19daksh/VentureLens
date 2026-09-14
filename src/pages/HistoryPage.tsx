@@ -12,10 +12,12 @@ import {
   ExternalLink,
   PlusCircle,
   FileText,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 
 export const HistoryPage: React.FC = () => {
-  const { ideas, deleteIdea, toggleCompareId, selectedCompareIds } = useAnalysis();
+  const { ideas, loading, error, deleteIdea, toggleCompareId, selectedCompareIds } = useAnalysis();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +65,20 @@ export const HistoryPage: React.FC = () => {
             <span>Validate New Idea</span>
           </Link>
         </div>
+
+        {/* Database Error Banner */}
+        {error && (
+          <div className="my-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-bold">Supabase Database Notice</p>
+              <p className="text-amber-800 dark:text-amber-300">{error}</p>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                To initialize your PostgreSQL tables, open your Supabase project SQL Editor and run the SQL script provided in <code className="bg-amber-100 dark:bg-amber-900/60 px-1 py-0.5 rounded font-mono">/supabase/schema.sql</code>.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="my-6 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 transition-colors">

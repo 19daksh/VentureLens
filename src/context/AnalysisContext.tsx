@@ -38,16 +38,26 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     setLoading(true);
+    setError(null);
+
     try {
       if (isSupabaseConfigured && supabase) {
-        // Fetch ideas and nested analyses from Supabase
+        // Fetch ideas and nested analyses directly from Supabase PostgreSQL
         const { data: dbIdeas, error: ideasError } = await supabase
           .from('startup_ideas')
           .select('*, analyses(*)')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 
-        if (!ideasError && dbIdeas) {
+        if (ideasError) {
+          console.error('Supabase query error:', ideasError);
+          setError(`Supabase Database Error: ${ideasError.message}. Make sure the schema has been created in your Supabase project.`);
+          setIdeas([]);
+          setLoading(false);
+          return;
+        }
+
+        if (dbIdeas) {
           const formatted: StartupIdea[] = dbIdeas.map((item: any) => {
             const rawAnalysis = item.analyses && item.analyses.length > 0 ? item.analyses[0] : null;
             const fullAnalysis: FullAnalysis | undefined = rawAnalysis
@@ -92,21 +102,26 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
       }
 
-      // Local storage fallback
-      const localList = localDb.getIdeas(user.id);
-      // Attach analyses
-      const enriched = localList.map(item => {
-        const analysis = localDb.getAnalysisByIdeaId(item.id, user.id);
-        return {
-          ...item,
-          analysis: analysis || undefined,
-        };
-      });
-      setIdeas(enriched);
+      // ONLY use local storage when Supabase is NOT configured (offline/local mode)
+      if (!isSupabaseConfigured) {
+        const localList = localDb.getIdeas(user.id);
+        const enriched = localList.map(item => {
+          const analysis = localDb.getAnalysisByIdeaId(item.id, user.id);
+          return {
+            ...item,
+            analysis: analysis || undefined,
+          };
+        });
+        setIdeas(enriched);
+      }
     } catch (err: any) {
       console.error('Error fetching ideas:', err);
-      const localList = localDb.getIdeas(user.id);
-      setIdeas(localList);
+      if (!isSupabaseConfigured) {
+        const localList = localDb.getIdeas(user.id);
+        setIdeas(localList);
+      } else {
+        setError(err?.message || 'Failed to fetch ideas from Supabase database.');
+      }
     } finally {
       setLoading(false);
     }
@@ -127,8 +142,9 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsAnalyzing(true);
     setError(null);
 
-    const ideaId = 'idea_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-    const analysisId = 'analysis_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+    // Use RFC 4122 compliant UUIDs for PostgreSQL UUID columns
+    const ideaId = crypto.randomUUID();
+    const analysisId = crypto.randomUUID();
     const now = new Date().toISOString();
 
     const newIdea: StartupIdea = {
@@ -144,8 +160,9 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updated_at: now,
     };
 
-    // Save initial idea record
-    localDb.saveIdea(newIdea);
+    if (!isSupabaseConfigured) {
+      localDb.saveIdea(newIdea);
+    }
     setIdeas(prev => [newIdea, ...prev]);
 
     try {
@@ -182,20 +199,34 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const rawAiData = result.data;
 
+      // Normalize verdict and type to adhere to schema check constraints
+      const rawVerdictType = String(rawAiData.verdict_type || rawAiData.final_verdict?.verdict_type || 'Build');
+      const normalizedVerdictType: 'Build' | 'Improve' | 'Pivot' =
+        rawVerdictType.toLowerCase() === 'pivot' ? 'Pivot' :
+        rawVerdictType.toLowerCase() === 'improve' ? 'Improve' : 'Build';
+
+      const verdictText = typeof rawAiData.verdict === 'object'
+        ? (rawAiData.verdict?.verdict || 'Evaluation completed.')
+        : String(rawAiData.verdict || rawAiData.final_verdict?.verdict || 'Evaluation completed.');
+
+      const confidenceText = typeof rawAiData.confidence_indicator === 'string'
+        ? rawAiData.confidence_indicator
+        : (rawAiData.final_verdict?.confidence_indicator || 'High Confidence');
+
       const fullAnalysis: FullAnalysis = {
         id: analysisId,
         idea_id: ideaId,
         user_id: user.id,
-        overall_score: rawAiData.overall_score,
-        verdict: rawAiData.verdict,
-        verdict_type: rawAiData.verdict_type,
-        confidence_indicator: rawAiData.confidence_indicator,
-        executive_summary: rawAiData.executive_summary,
-        problem_score: rawAiData.problem_score,
-        market_score: rawAiData.market_score,
-        competition_score: rawAiData.competition_score,
-        revenue_score: rawAiData.revenue_score,
-        technical_score: rawAiData.technical_score,
+        overall_score: Number(rawAiData.overall_score) || 75,
+        verdict: verdictText,
+        verdict_type: normalizedVerdictType,
+        confidence_indicator: confidenceText,
+        executive_summary: String(rawAiData.executive_summary || 'Analysis completed successfully.'),
+        problem_score: Number(rawAiData.problem_score) || 75,
+        market_score: Number(rawAiData.market_score) || 75,
+        competition_score: Number(rawAiData.competition_score) || 70,
+        revenue_score: Number(rawAiData.revenue_score) || 70,
+        technical_score: Number(rawAiData.technical_score) || 75,
         created_at: now,
         updated_at: now,
         problem_validation: rawAiData.problem_validation,
@@ -210,86 +241,108 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         final_verdict: rawAiData.final_verdict,
       };
 
-      // Save locally
-      localDb.saveAnalysis(fullAnalysis);
-
-      // If Supabase is connected, write records to PostgreSQL tables
+      // If Supabase is connected, write records directly to PostgreSQL tables
       if (isSupabaseConfigured && supabase) {
-        try {
-          // Insert into startup_ideas
-          await supabase.from('startup_ideas').upsert({
-            id: ideaId,
-            user_id: user.id,
-            title: payload.title,
-            description: payload.description,
-            industry: payload.industry,
-            target_audience: payload.target_audience,
-            additional_info: payload.additional_info,
-            status: 'completed',
-          });
+        // Insert into startup_ideas table
+        const { error: ideaError } = await supabase.from('startup_ideas').insert({
+          id: ideaId,
+          user_id: user.id,
+          title: payload.title,
+          description: payload.description,
+          industry: payload.industry,
+          target_audience: payload.target_audience,
+          additional_info: payload.additional_info,
+          status: 'completed',
+        });
 
-          // Insert into analyses table
-          await supabase.from('analyses').upsert({
-            id: analysisId,
-            idea_id: ideaId,
-            user_id: user.id,
-            overall_score: fullAnalysis.overall_score,
-            verdict: fullAnalysis.verdict,
-            verdict_type: fullAnalysis.verdict_type,
-            confidence_indicator: fullAnalysis.confidence_indicator,
-            executive_summary: fullAnalysis.executive_summary,
-            problem_score: fullAnalysis.problem_score,
-            market_score: fullAnalysis.market_score,
-            competition_score: fullAnalysis.competition_score,
-            revenue_score: fullAnalysis.revenue_score,
-            technical_score: fullAnalysis.technical_score,
-            raw_gemini_response: rawAiData,
-          });
+        if (ideaError) {
+          throw new Error(`Supabase Database Error inserting idea: ${ideaError.message}`);
+        }
 
-          // Sub-tables
-          if (rawAiData.market_analysis) {
+        // Insert into analyses table
+        const { error: analysisError } = await supabase.from('analyses').insert({
+          id: analysisId,
+          idea_id: ideaId,
+          user_id: user.id,
+          overall_score: fullAnalysis.overall_score,
+          verdict: fullAnalysis.verdict,
+          verdict_type: fullAnalysis.verdict_type,
+          confidence_indicator: fullAnalysis.confidence_indicator,
+          executive_summary: fullAnalysis.executive_summary,
+          problem_score: fullAnalysis.problem_score,
+          market_score: fullAnalysis.market_score,
+          competition_score: fullAnalysis.competition_score,
+          revenue_score: fullAnalysis.revenue_score,
+          technical_score: fullAnalysis.technical_score,
+          raw_gemini_response: rawAiData,
+        });
+
+        if (analysisError) {
+          throw new Error(`Supabase Database Error inserting analysis: ${analysisError.message}`);
+        }
+
+        // Sub-tables
+        if (rawAiData.market_analysis) {
+          try {
             await supabase.from('market_analysis').insert({
               analysis_id: analysisId,
-              tam: rawAiData.market_analysis.tam,
-              sam: rawAiData.market_analysis.sam,
-              som: rawAiData.market_analysis.som,
-              demand_score: rawAiData.market_analysis.demand_score,
-              growth_potential: rawAiData.market_analysis.growth_potential,
-              market_trends: rawAiData.market_analysis.market_trends,
-              key_insights: rawAiData.market_analysis.key_insights,
+              tam: String(rawAiData.market_analysis.tam || 'N/A'),
+              sam: String(rawAiData.market_analysis.sam || 'N/A'),
+              som: String(rawAiData.market_analysis.som || 'N/A'),
+              demand_score: Number(rawAiData.market_analysis.demand_score) || 75,
+              growth_potential: String(rawAiData.market_analysis.growth_potential || 'High'),
+              market_trends: rawAiData.market_analysis.market_trends || [],
+              key_insights: String(rawAiData.market_analysis.key_insights || ''),
             });
+          } catch (err) {
+            console.warn('market_analysis sub-table insert notice:', err);
           }
+        }
 
-          if (rawAiData.competitor_analysis?.competitors) {
-            for (const c of rawAiData.competitor_analysis.competitors) {
+        if (rawAiData.competitor_analysis?.competitors && Array.isArray(rawAiData.competitor_analysis.competitors)) {
+          for (const c of rawAiData.competitor_analysis.competitors) {
+            try {
               await supabase.from('competitors').insert({
                 analysis_id: analysisId,
-                name: c.name,
-                description: c.description,
-                strengths: c.strengths,
-                weaknesses: c.weaknesses,
-                target_customer: c.target_customer,
-                differentiation_opportunity: c.differentiation_opportunity,
+                name: String(c.name || 'Competitor'),
+                description: String(c.description || ''),
+                strengths: c.strengths || [],
+                weaknesses: c.weaknesses || [],
+                target_customer: String(c.target_customer || ''),
+                differentiation_opportunity: String(c.differentiation_opportunity || ''),
               });
+            } catch (err) {
+              console.warn('competitors sub-table insert notice:', err);
             }
           }
+        }
 
-          if (rawAiData.risks) {
-            for (const r of rawAiData.risks) {
+        if (rawAiData.risks && Array.isArray(rawAiData.risks)) {
+          for (const r of rawAiData.risks) {
+            const capitalize = (val?: string, fallback: string = 'Medium') => {
+              if (!val) return fallback;
+              return val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+            };
+
+            try {
               await supabase.from('risks').insert({
                 analysis_id: analysisId,
-                category: r.category,
-                description: r.description,
-                severity: r.severity,
-                probability: r.probability,
-                impact: r.impact,
-                mitigation: r.mitigation,
+                category: String(r.category || 'General'),
+                description: String(r.description || ''),
+                severity: ['Critical', 'High', 'Medium', 'Low'].includes(capitalize(r.severity)) ? capitalize(r.severity) : 'Medium',
+                probability: ['High', 'Medium', 'Low'].includes(capitalize(r.probability)) ? capitalize(r.probability) : 'Medium',
+                impact: ['High', 'Medium', 'Low'].includes(capitalize(r.impact)) ? capitalize(r.impact) : 'Medium',
+                mitigation: String(r.mitigation || ''),
               });
+            } catch (err) {
+              console.warn('risks sub-table insert notice:', err);
             }
           }
-        } catch (supabaseErr) {
-          console.warn('Supabase insertion notice (saved safely in local storage):', supabaseErr);
         }
+      } else {
+        // Only save locally if Supabase is NOT configured
+        localDb.saveIdea({ ...newIdea, status: 'completed' });
+        localDb.saveAnalysis(fullAnalysis);
       }
 
       // Update state
@@ -307,12 +360,14 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const msg = err?.message || 'Failed to complete validation analysis.';
       setError(msg);
 
-      // Mark idea as failed
+      // Mark idea as failed in state
       const failedIdea: StartupIdea = {
         ...newIdea,
         status: 'failed',
       };
-      localDb.saveIdea(failedIdea);
+      if (!isSupabaseConfigured) {
+        localDb.saveIdea(failedIdea);
+      }
       setIdeas(prev => prev.map(item => (item.id === ideaId ? failedIdea : item)));
 
       return { error: msg };
@@ -328,20 +383,31 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       if (isSupabaseConfigured && supabase) {
-        await supabase.from('startup_ideas').delete().eq('id', ideaId);
+        const { error: delError } = await supabase
+          .from('startup_ideas')
+          .delete()
+          .eq('id', ideaId)
+          .eq('user_id', user.id);
+
+        if (delError) {
+          setError(`Supabase deletion error: ${delError.message}`);
+          return false;
+        }
+      } else {
+        localDb.deleteIdea(ideaId, user.id);
       }
-      localDb.deleteIdea(ideaId, user.id);
       setIdeas(prev => prev.filter(i => i.id !== ideaId));
       setSelectedCompareIds(prev => prev.filter(id => id !== ideaId));
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting idea:', err);
+      setError(err?.message || 'Error deleting idea');
       return false;
     }
   };
 
   const getIdeaById = (id: string): StartupIdea | null => {
-    return ideas.find(i => i.id === id) || (user ? localDb.getIdeaById(id, user.id) : null);
+    return ideas.find(i => i.id === id) || (!isSupabaseConfigured && user ? localDb.getIdeaById(id, user.id) : null);
   };
 
   const toggleCompareId = (id: string) => {

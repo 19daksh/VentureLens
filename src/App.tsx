@@ -81,6 +81,14 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="/report/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ReportPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/history"
                   element={
                     <ProtectedRoute>

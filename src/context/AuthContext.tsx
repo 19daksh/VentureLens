@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured, localDb, seedInitialDataIfEmpty } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, localDb } from '../lib/supabase';
 import { AuthUser, UserProfile } from '../types/auth';
 
 interface AuthContextType {
@@ -35,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setUser(authUser);
             await fetchOrCreateProfile(session.user.id, session.user.email || '', session.user.user_metadata?.full_name);
-            seedInitialDataIfEmpty(session.user.id);
           }
 
           // Listen for auth changes
@@ -81,7 +80,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 localDb.saveProfile(newProfile);
                 setProfile(newProfile);
               }
-              seedInitialDataIfEmpty(u.id);
             } catch (err) {
               console.error('Error restoring local user:', err);
             }
@@ -170,7 +168,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(authUser);
           await fetchOrCreateProfile(data.user.id, email, fullName);
-          seedInitialDataIfEmpty(data.user.id);
         }
         return {};
       } else {
@@ -198,7 +195,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localDb.saveProfile(newProfile);
         setUser(authUser);
         setProfile(newProfile);
-        seedInitialDataIfEmpty(newId);
         return {};
       }
     } catch (err: any) {
@@ -225,7 +221,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
           setUser(authUser);
           await fetchOrCreateProfile(data.user.id, email, data.user.user_metadata?.full_name);
-          seedInitialDataIfEmpty(data.user.id);
         }
         return {};
       } else {
@@ -251,7 +246,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('venturelens_auth_user', JSON.stringify(authUser));
         setUser(authUser);
         await fetchOrCreateProfile(authUser.id, authUser.email, authUser.user_metadata?.full_name);
-        seedInitialDataIfEmpty(authUser.id);
         return {};
       }
     } catch (err: any) {
