@@ -1,6 +1,5 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { runStartupIdeaAnalysis } from './server/geminiService.ts';
@@ -8,8 +7,7 @@ import { runStartupIdeaAnalysis } from './server/geminiService.ts';
 // Load environment variables
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const rootDir = process.cwd();
 
 async function startServer() {
   const app = express();
@@ -17,6 +15,11 @@ async function startServer() {
 
   // JSON Body parsing
   app.use(express.json({ limit: '5mb' }));
+
+  // Favicon handler to prevent 404 console errors
+  app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(process.cwd(), 'public', 'favicon.svg'));
+  });
 
   // 1. Health check endpoint
   app.get('/api/health', (req, res) => {
@@ -79,7 +82,10 @@ async function startServer() {
   // Vite development middleware or production static serving
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

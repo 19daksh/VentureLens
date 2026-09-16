@@ -2,8 +2,18 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { StartupIdea, FullAnalysis } from '../types/analysis';
 import { UserProfile } from '../types/auth';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const getEnvVar = (key: string): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return import.meta.env[key];
+  }
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key] as string;
+  }
+  return '';
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

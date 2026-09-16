@@ -14,12 +14,11 @@ import {
   LogOut,
   Menu,
   X,
-  Database,
   CheckCircle2,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
-  const { user, profile, signOut, isConfiguredWithSupabase } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { selectedCompareIds } = useAnalysis();
   const location = useLocation();
   const navigate = useNavigate();
@@ -111,19 +110,6 @@ export const Navbar: React.FC = () => {
             {/* Theme Toggle Button */}
             <ThemeToggle id="nav-theme-toggle-desktop" />
 
-            {/* Supabase connection indicator pill */}
-            <Link
-              to="/settings"
-              title={isConfiguredWithSupabase ? 'Connected to live Supabase PostgreSQL' : 'Local Storage mode (Configure Supabase in Settings)'}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            >
-              <Database className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-              <span className="text-[11px] hidden lg:inline">
-                {isConfiguredWithSupabase ? 'Supabase Live' : 'Supabase Ready'}
-              </span>
-              <span className={`w-1.5 h-1.5 rounded-full ${isConfiguredWithSupabase ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-            </Link>
-
             {user ? (
               <>
                 <Link
@@ -181,7 +167,7 @@ export const Navbar: React.FC = () => {
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
                         <Settings className="w-4 h-4 text-slate-400" />
-                        <span>Settings & Supabase</span>
+                        <span>Settings</span>
                       </Link>
 
                       <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
@@ -275,7 +261,7 @@ export const Navbar: React.FC = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-3 py-2 text-sm text-slate-700 dark:text-slate-300"
                 >
-                  Settings & DB
+                  Settings
                 </Link>
                 <button
                   onClick={() => {
