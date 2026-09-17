@@ -3,6 +3,12 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
 import { runStartupIdeaAnalysis } from './server/geminiService.ts';
+import {
+  streamAdvisorResponse,
+  fetchVerifiedAnalysis,
+  AnalysisContextData,
+  ChatMessage,
+} from './server/advisorService.ts';
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +81,102 @@ async function startServer() {
       return res.status(500).json({
         success: false,
         error: errorMessage,
+      });
+    }
+  });
+
+  // 3. VentureLens AI Advisor Conversational Endpoint
+  app.post('/api/chat', async (req, res) => {
+    try {
+      const { message, history = [], analysisId, stream = true, clientContext } = req.body;
+
+      // Validate message
+      if (!message || typeof message !== 'string' || !message.trim()) {
+        return res.status(400).json({ error: 'Message cannot be empty.' });
+      }
+
+      if (message.length > 2500) {
+        return res.status(400).json({ error: 'Message exceeds maximum length of 2500 characters.' });
+      }
+
+      let analysisContext: AnalysisContextData | null = null;
+
+      // If an analysisId is specified, verify authentication & ownership
+      if (analysisId && typeof analysisId === 'string') {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+        const isDemoSession = token === 'demo-token' || (clientContext && clientContext.isDemo);
+
+        if (!token && !isDemoSession) {
+          return res.status(401).json({
+            error: 'Authentication required to access saved startup analysis. Please log in.',
+          });
+        }
+
+        if (token && !isDemoSession) {
+          const { context, authorized, error: authErr } = await fetchVerifiedAnalysis(analysisId, token);
+          if (!authorized) {
+            return res.status(403).json({
+              error: authErr || 'Unauthorized: You do not have permission to view or discuss this analysis.',
+            });
+          }
+          analysisContext = context;
+        } else if (isDemoSession && clientContext) {
+          analysisContext = clientContext;
+        }
+      }
+
+      // Safe history validation (limit to last 10 messages)
+      const sanitizedHistory: ChatMessage[] = Array.isArray(history)
+        ? history
+            .filter((h: any) => h && (h.role === 'user' || h.role === 'model') && typeof h.text === 'string')
+            .slice(-10)
+            .map((h: any) => ({
+              role: h.role,
+              text: String(h.text).slice(0, 3000),
+            }))
+        : [];
+
+      if (stream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.flushHeaders?.();
+
+        try {
+          await streamAdvisorResponse({
+            message: message.trim(),
+            history: sanitizedHistory,
+            analysisContext,
+            onChunk: (chunk: string) => {
+              res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+            },
+          });
+          res.write('data: [DONE]\n\n');
+          res.end();
+        } catch (streamErr: any) {
+          console.error('[VentureLens Chat] Stream generation error:', streamErr);
+          res.write(`data: ${JSON.stringify({ error: 'VentureLens AI is temporarily unavailable. Please try again.' })}\n\n`);
+          res.end();
+        }
+      } else {
+        let fullText = '';
+        await streamAdvisorResponse({
+          message: message.trim(),
+          history: sanitizedHistory,
+          analysisContext,
+          onChunk: (chunk: string) => {
+            fullText += chunk;
+          },
+        });
+        return res.json({ success: true, text: fullText });
+      }
+    } catch (error: any) {
+      console.error('[VentureLens Chat] Top-level handler error:', error);
+      return res.status(500).json({
+        error: 'VentureLens AI is temporarily unavailable. Please try again.',
       });
     }
   });

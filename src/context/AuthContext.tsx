@@ -8,12 +8,14 @@ export const isUuid = (val?: string): boolean =>
 interface AuthContextType {
   user: AuthUser | null;
   profile: UserProfile | null;
+  session: any | null;
   loading: boolean;
   isConfiguredWithSupabase: boolean;
   signUp: (email: string, password: string, fullName: string, organization?: string) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (password: string) => Promise<{ error?: string }>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ error?: string }>;
 }
 
@@ -22,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize auth state
@@ -29,15 +32,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     async function initAuth() {
       try {
         if (isSupabaseConfigured && supabase) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
+          const { data: { session: activeSession } } = await supabase.auth.getSession();
+          if (activeSession?.user) {
+            setSession(activeSession);
             const authUser: AuthUser = {
-              id: session.user.id,
-              email: session.user.email || '',
-              user_metadata: session.user.user_metadata,
+              id: activeSession.user.id,
+              email: activeSession.user.email || '',
+              user_metadata: activeSession.user.user_metadata,
             };
             setUser(authUser);
-            await fetchOrCreateProfile(session.user.id, session.user.email || '', session.user.user_metadata?.full_name);
+            await fetchOrCreateProfile(activeSession.user.id, activeSession.user.email || '', activeSession.user.user_metadata?.full_name);
           } else {
             // Check if there is a stored local or demo session
             const stored = localStorage.getItem('venturelens_auth_user');
@@ -54,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Listen for auth changes
           const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            setSession(session);
             if (session?.user) {
               const u: AuthUser = {
                 id: session.user.id,
@@ -67,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               localStorage.removeItem('venturelens_auth_user');
               setUser(null);
               setProfile(null);
+              setSession(null);
             }
           });
 
@@ -314,6 +320,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Update password
+  const updatePassword = async (password: string) => {
+    try {
+      if (isSupabaseConfigured && supabase) {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) return { error: error.message };
+        return {};
+      }
+      return {};
+    } catch (err: any) {
+      return { error: err?.message || 'Failed to update password.' };
+    }
+  };
+
   // Update profile
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!user) return { error: 'Not authenticated' };
@@ -354,12 +374,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         profile,
+        session,
         loading,
         isConfiguredWithSupabase: isSupabaseConfigured,
         signUp,
         signIn,
         signOut,
         resetPassword,
+        updatePassword,
         updateProfile,
       }}
     >

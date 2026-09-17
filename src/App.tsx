@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { VentureLensAdvisor } from './components/Chatbot/VentureLensAdvisor';
 
 // Public Pages
 import { LandingPage } from './pages/LandingPage';
@@ -126,6 +127,7 @@ export default function App() {
               </Routes>
             </main>
             <Footer />
+            <VentureLensAdvisor />
           </div>
         </AnalysisProvider>
       </AuthProvider>
