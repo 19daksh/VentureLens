@@ -9,7 +9,6 @@ import {
   PlusCircle,
   CheckCircle2,
   AlertCircle,
-  Compass,
   X,
 } from 'lucide-react';
 
@@ -101,7 +100,7 @@ export const ComparePage: React.FC = () => {
               <GitCompare className="w-6 h-6" />
             </div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Select at least 2 startup ideas</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-300 max-w-sm mx-auto mt-1 leading-relaxed">
               Click the idea pills above to add them to this side-by-side comparison radar and metrics matrix.
             </p>
             {ideas.length < 2 && (
@@ -123,7 +122,7 @@ export const ComparePage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">Multi-Idea Radar Benchmark</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
                     Compare performance across problem, market opportunity, moat, revenue, and technical feasibility.
                   </p>
                 </div>
@@ -145,7 +144,7 @@ export const ComparePage: React.FC = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                       <th className="p-4 w-48 shrink-0">Metric</th>
                       {selectedIdeas.map(idea => (
                         <th key={idea.id} className="p-4 min-w-[220px]">
@@ -155,7 +154,7 @@ export const ComparePage: React.FC = () => {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                     {/* Overall Score */}
                     <tr>
                       <td className="p-4 font-bold text-slate-900 dark:text-white bg-slate-50/30 dark:bg-slate-800/30">Overall Score</td>

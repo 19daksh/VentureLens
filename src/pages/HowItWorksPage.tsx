@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, ShieldCheck, Zap, Compass, Cpu, Database } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldCheck, Zap, Cpu, Database } from 'lucide-react';
 
 export const HowItWorksPage: React.FC = () => {
   const steps = [

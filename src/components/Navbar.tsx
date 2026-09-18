@@ -70,7 +70,7 @@ export const Navbar: React.FC = () => {
                     AI
                   </span>
                 </div>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-tight -mt-0.5 hidden sm:inline">
+                <span className="text-[10px] text-slate-500 dark:text-slate-300 font-medium tracking-tight -mt-0.5 hidden sm:inline">
                   Idea Validation Engine
                 </span>
               </div>
@@ -135,7 +135,7 @@ export const Navbar: React.FC = () => {
                       <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">
                         {profile?.full_name || 'Founder'}
                       </span>
-                      <span className="text-slate-500 dark:text-slate-400 text-[10px] truncate max-w-[120px]">
+                      <span className="text-slate-500 dark:text-slate-300 text-[10px] truncate max-w-[120px]">
                         {user.email}
                       </span>
                     </div>
@@ -147,7 +147,7 @@ export const Navbar: React.FC = () => {
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Signed in as</p>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-300">Signed in as</p>
                         <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user.email}</p>
                         <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">{profile?.organization || 'Founder'}</p>
                       </div>
@@ -157,7 +157,7 @@ export const Navbar: React.FC = () => {
                         id="dropdown-link-profile"
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
-                        <User className="w-4 h-4 text-slate-400" />
+                        <User className="w-4 h-4 text-slate-400 dark:text-slate-300" />
                         <span>Founder Profile</span>
                       </Link>
 
@@ -166,7 +166,7 @@ export const Navbar: React.FC = () => {
                         id="dropdown-link-settings"
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       >
-                        <Settings className="w-4 h-4 text-slate-400" />
+                        <Settings className="w-4 h-4 text-slate-400 dark:text-slate-300" />
                         <span>Settings</span>
                       </Link>
 

@@ -10,33 +10,33 @@ export const ScoreBadge: React.FC<ScoreBadgeProps> = ({ score, size = 'md', show
   const getTheme = (val: number) => {
     if (val >= 80) {
       return {
-        bg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-        ring: 'text-emerald-600',
+        bg: 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300',
+        ring: 'text-emerald-600 dark:text-emerald-400',
         label: 'Strong Signal',
-        color: 'text-emerald-700',
+        color: 'text-emerald-700 dark:text-emerald-300',
       };
     }
     if (val >= 65) {
       return {
-        bg: 'bg-blue-50 border-blue-200 text-blue-700',
-        ring: 'text-blue-600',
+        bg: 'bg-blue-50 dark:bg-blue-950/70 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300',
+        ring: 'text-blue-600 dark:text-blue-400',
         label: 'Promising',
-        color: 'text-blue-700',
+        color: 'text-blue-700 dark:text-blue-300',
       };
     }
     if (val >= 50) {
       return {
-        bg: 'bg-amber-50 border-amber-200 text-amber-700',
-        ring: 'text-amber-600',
+        bg: 'bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',
+        ring: 'text-amber-600 dark:text-amber-400',
         label: 'Needs Refinement',
-        color: 'text-amber-700',
+        color: 'text-amber-700 dark:text-amber-300',
       };
     }
     return {
-      bg: 'bg-rose-50 border-rose-200 text-rose-700',
-      ring: 'text-rose-600',
+      bg: 'bg-rose-50 dark:bg-rose-950/70 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300',
+      ring: 'text-rose-600 dark:text-rose-400',
       label: 'High Friction',
-      color: 'text-rose-700',
+      color: 'text-rose-700 dark:text-rose-300',
     };
   };
 

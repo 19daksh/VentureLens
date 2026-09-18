@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { StartupIdea } from '../types/analysis';
+import { useTheme } from '../context/ThemeContext';
 
 interface ComparisonRadarChartProps {
   ideas: StartupIdea[];
@@ -23,6 +24,9 @@ const COLORS = [
 ];
 
 export const ComparisonRadarChart: React.FC<ComparisonRadarChartProps> = ({ ideas, height = 360 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   const subjects = [
     { key: 'problem_score', label: 'Problem Strength' },
     { key: 'market_score', label: 'Market Opportunity' },
@@ -44,22 +48,22 @@ export const ComparisonRadarChart: React.FC<ComparisonRadarChartProps> = ({ idea
     <div className="w-full h-full min-h-[340px] flex items-center justify-center">
       <ResponsiveContainer width="100%" height={height}>
         <RadarChart cx="50%" cy="50%" outerRadius="68%" data={data}>
-          <PolarGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+          <PolarGrid stroke={isDark ? '#334155' : '#e2e8f0'} strokeDasharray="3 3" />
           <PolarAngleAxis
             dataKey="subject"
-            tick={{ fill: '#334155', fontSize: 11, fontWeight: 600 }}
+            tick={{ fill: isDark ? '#cbd5e1' : '#334155', fontSize: 11, fontWeight: 600 }}
           />
           <PolarRadiusAxis
             angle={30}
             domain={[0, 100]}
-            tick={{ fill: '#94a3b8', fontSize: 10 }}
-            stroke="#cbd5e1"
+            tick={{ fill: isDark ? '#94a3b8' : '#64748b', fontSize: 10 }}
+            stroke={isDark ? '#475569' : '#cbd5e1'}
           />
           <Tooltip
             contentStyle={{
               backgroundColor: '#0f172a',
               borderRadius: '8px',
-              border: 'none',
+              border: isDark ? '1px solid #334155' : 'none',
               color: '#fff',
               fontSize: '12px',
             }}
@@ -69,7 +73,7 @@ export const ComparisonRadarChart: React.FC<ComparisonRadarChartProps> = ({ idea
             formatter={(value: string) => {
               const idx = parseInt(value.replace('idea_', ''), 10);
               const name = ideas[idx]?.title || `Idea ${idx + 1}`;
-              return <span className="text-xs font-semibold text-slate-700">{name}</span>;
+              return <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{name}</span>;
             }}
           />
           {ideas.map((_, idx) => (

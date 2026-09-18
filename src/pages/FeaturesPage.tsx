@@ -115,7 +115,7 @@ export const FeaturesPage: React.FC = () => {
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mt-3 font-['Space_Grotesk',sans-serif]">
             Everything you need to stress-test your startup
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+          <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 leading-relaxed">
             Built on institutional venture diligence frameworks to help founders navigate market reality before committing capital.
           </p>
         </div>
@@ -126,14 +126,14 @@ export const FeaturesPage: React.FC = () => {
             return (
               <div
                 key={idx}
-                className="bg-white dark:bg-slate-900 p-7 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-600 transition-all flex flex-col justify-between"
+                className="bg-white dark:bg-slate-900 p-7 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs hover:border-indigo-300 dark:hover:border-indigo-500/60 transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-700/60 flex items-center justify-center">
                       <Icon className="w-5 h-5" />
                     </div>
-                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-100 dark:border-indigo-700/60 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                       {feat.tag}
                     </span>
                   </div>
@@ -141,9 +141,9 @@ export const FeaturesPage: React.FC = () => {
                   <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">{feat.desc}</p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
                   {feat.points.map((pt, pIdx) => (
-                    <div key={pIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <div key={pIdx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
                       <span>{pt}</span>
                     </div>

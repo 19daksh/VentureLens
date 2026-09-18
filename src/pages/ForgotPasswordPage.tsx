@@ -30,20 +30,20 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50">
+    <div className="min-h-[80vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-950 transition-colors">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link to="/" className="inline-flex items-center gap-2 mb-4">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold shadow-md">
             <Compass className="w-5 h-5" />
           </div>
-          <span className="font-extrabold text-2xl text-slate-900 tracking-tight font-['Space_Grotesk',sans-serif]">
+          <span className="font-extrabold text-2xl text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
             VentureLens AI
           </span>
         </Link>
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 font-['Space_Grotesk',sans-serif]">
+        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white font-['Space_Grotesk',sans-serif]">
           Reset your password
         </h2>
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
           Enter your email and we'll send you recovery instructions.
         </p>
       </div>

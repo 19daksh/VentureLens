@@ -12,7 +12,6 @@ import {
   AlertCircle,
   RefreshCw,
   Square,
-  Compass,
   ArrowRight,
   Info,
   ChevronDown,

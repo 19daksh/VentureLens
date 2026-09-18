@@ -89,13 +89,13 @@ export const ReportPage: React.FC = () => {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white print:text-slate-900 tracking-tight font-['Space_Grotesk',sans-serif]">
                 {idea.title}
               </h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400 print:text-slate-500 mt-1">
+              <p className="text-xs text-slate-500 dark:text-slate-300 print:text-slate-500 mt-1">
                 Sector: <strong className="text-slate-800 dark:text-slate-200 print:text-slate-800">{idea.industry}</strong> • Target Audience: <strong className="text-slate-800 dark:text-slate-200 print:text-slate-800">{idea.target_audience}</strong>
               </p>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 font-semibold block uppercase">Evaluation Date</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold block uppercase">Evaluation Date</span>
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 print:text-slate-800">
                 {new Date(idea.created_at).toLocaleDateString(undefined, {
                   year: 'numeric',
@@ -112,11 +112,11 @@ export const ReportPage: React.FC = () => {
           {/* Verdict Box */}
           <div className="my-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 border border-slate-200 dark:border-slate-700 print:border-slate-200 flex items-center justify-between">
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400">Formal Recommendation</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Formal Recommendation</span>
               <p className="text-base font-extrabold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">{analysis.verdict}</p>
             </div>
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Diligence Confidence</span>
+              <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Diligence Confidence</span>
               <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400 uppercase">{analysis.confidence_indicator}</p>
             </div>
           </div>
@@ -139,23 +139,23 @@ export const ReportPage: React.FC = () => {
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700 print:border-slate-200">
-                  <span className="text-slate-600 dark:text-slate-400 print:text-slate-600">Problem & Demand Severity:</span>
+                  <span className="text-slate-600 dark:text-slate-300 print:text-slate-600">Problem & Demand Severity:</span>
                   <strong className="text-slate-900 dark:text-white print:text-slate-900">{analysis.problem_score} / 100</strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700 print:border-slate-200">
-                  <span className="text-slate-600 dark:text-slate-400 print:text-slate-600">Market TAM/SAM Opportunity:</span>
+                  <span className="text-slate-600 dark:text-slate-300 print:text-slate-600">Market TAM/SAM Opportunity:</span>
                   <strong className="text-indigo-600 dark:text-indigo-400 print:text-indigo-600">{analysis.market_score} / 100</strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700 print:border-slate-200">
-                  <span className="text-slate-600 dark:text-slate-400 print:text-slate-600">Moat & Competitive Wedge:</span>
+                  <span className="text-slate-600 dark:text-slate-300 print:text-slate-600">Moat & Competitive Wedge:</span>
                   <strong className="text-slate-900 dark:text-white print:text-slate-900">{analysis.competition_score} / 100</strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700 print:border-slate-200">
-                  <span className="text-slate-600 dark:text-slate-400 print:text-slate-600">Business Model & Unit Economics:</span>
+                  <span className="text-slate-600 dark:text-slate-300 print:text-slate-600">Business Model & Unit Economics:</span>
                   <strong className="text-emerald-600 dark:text-emerald-400 print:text-emerald-600">{analysis.revenue_score} / 100</strong>
                 </div>
                 <div className="flex justify-between py-1">
-                  <span className="text-slate-600 dark:text-slate-400 print:text-slate-600">Technical Feasibility:</span>
+                  <span className="text-slate-600 dark:text-slate-300 print:text-slate-600">Technical Feasibility:</span>
                   <strong className="text-slate-900 dark:text-white print:text-slate-900">{analysis.technical_score} / 100</strong>
                 </div>
               </div>
@@ -173,7 +173,7 @@ export const ReportPage: React.FC = () => {
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-100 dark:border-slate-700 print:border-slate-100 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">TAM</p>
+                <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">TAM</p>
                 <p className="text-base font-extrabold text-slate-900 dark:text-white print:text-slate-900">{analysis.market_analysis?.tam}</p>
               </div>
               <div className="p-3 bg-indigo-50 dark:bg-indigo-950/60 print:bg-indigo-50 rounded-lg border border-indigo-100 dark:border-indigo-900/60 print:border-indigo-100 text-center">
@@ -185,7 +185,7 @@ export const ReportPage: React.FC = () => {
                 <p className="text-base font-extrabold text-emerald-700 dark:text-emerald-300 print:text-emerald-700">{analysis.market_analysis?.som}</p>
               </div>
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 print:text-slate-600 leading-relaxed pt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-300 print:text-slate-600 leading-relaxed pt-1">
               {analysis.market_analysis?.growth_potential}
             </p>
           </div>

@@ -52,7 +52,7 @@ export const HistoryPage: React.FC = () => {
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
               Evaluation History
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 mt-1">
               Complete archive of your validated startup ideas and investment memos.
             </p>
           </div>
@@ -118,7 +118,7 @@ export const HistoryPage: React.FC = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-wider">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase text-[10px] tracking-wider">
                     <th className="p-4">Idea Title</th>
                     <th className="p-4">Industry</th>
                     <th className="p-4">Score</th>
@@ -127,7 +127,7 @@ export const HistoryPage: React.FC = () => {
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-200">
                   {filteredIdeas.map(item => {
                     const isSelected = selectedCompareIds.includes(item.id);
                     return (
@@ -138,7 +138,7 @@ export const HistoryPage: React.FC = () => {
                       >
                         <td className="p-4 font-bold text-slate-900 dark:text-white">
                           <div>{item.title}</div>
-                          <div className="text-[11px] font-normal text-slate-400 dark:text-slate-500 truncate max-w-xs mt-0.5">
+                          <div className="text-[11px] font-normal text-slate-500 dark:text-slate-400 truncate max-w-xs mt-0.5">
                             {item.description}
                           </div>
                         </td>
@@ -151,13 +151,13 @@ export const HistoryPage: React.FC = () => {
                           {item.analysis?.overall_score !== undefined ? (
                             <ScoreBadge score={item.analysis.overall_score} size="sm" />
                           ) : (
-                            <span className="text-slate-400">Pending</span>
+                            <span className="text-slate-400 dark:text-slate-500">Pending</span>
                           )}
                         </td>
                         <td className="p-4 font-semibold text-slate-800 dark:text-slate-200">
                           {item.analysis?.verdict || 'Analyzing'}
                         </td>
-                        <td className="p-4 text-slate-400 dark:text-slate-500 text-[11px]">
+                        <td className="p-4 text-slate-500 dark:text-slate-400 text-[11px]">
                           {new Date(item.created_at).toLocaleDateString()}
                         </td>
                         <td className="p-4 text-right" onClick={e => e.stopPropagation()}>
@@ -177,7 +177,7 @@ export const HistoryPage: React.FC = () => {
                             <Link
                               to={`/analysis/${item.id}/report`}
                               title="Investor Memo"
-                              className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800"
+                              className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-slate-800"
                             >
                               <FileText className="w-3.5 h-3.5" />
                             </Link>

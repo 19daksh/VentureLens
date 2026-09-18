@@ -152,7 +152,7 @@ export const SettingsPage: React.FC = () => {
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
             Settings & Preferences
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 mt-1">
             Manage your founder profile, validation preferences, interface appearance, and account security.
           </p>
         </div>
@@ -165,7 +165,7 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Founder Profile</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-300">
                 Update your founder name and organization identity across validation reports.
               </p>
             </div>
@@ -272,7 +272,7 @@ export const SettingsPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Interface Theme</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-slate-500 dark:text-slate-300">
                   Select your preferred color scheme or synchronize with your operating system.
                 </p>
               </div>
@@ -308,7 +308,7 @@ export const SettingsPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                   Pre-selected when creating new validation briefs.
                 </p>
               </div>
@@ -368,7 +368,7 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Account & Authentication</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-300">
                 Manage your credentials and sign-in credentials securely.
               </p>
             </div>
@@ -399,7 +399,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-900 dark:text-white">Primary Account Email</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email || 'Not authenticated'}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-300">{user?.email || 'Not authenticated'}</p>
                 </div>
               </div>
 
@@ -416,7 +416,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-900 dark:text-white">Password & Security</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-300">
                     Request a secure password reset link to your registered email.
                   </p>
                 </div>
@@ -447,7 +447,7 @@ export const SettingsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Local Evaluation Cache</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
                 Clear locally cached draft inputs and browser session temporary storage.
               </p>
             </div>
@@ -468,7 +468,7 @@ export const SettingsPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-rose-700 dark:text-rose-400">Account Session</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">
                 Sign out of your VentureLens session on this device.
               </p>
             </div>

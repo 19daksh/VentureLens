@@ -95,7 +95,7 @@ export const DashboardPage: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
               Founder Dashboard
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-300 mt-1">
               Welcome back, {profile?.full_name || user?.email}. Manage and benchmark your validated concepts.
             </p>
           </div>
@@ -127,38 +127,38 @@ export const DashboardPage: React.FC = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 my-8">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Evaluated</span>
-              <Layers className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Evaluated</span>
+              <Layers className="w-4 h-4 text-slate-400 dark:text-slate-400" />
             </div>
             <p className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">{metrics.total}</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Startup concepts tested</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Startup concepts tested</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Average Score</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Average Score</span>
               <TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             </div>
-            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{metrics.avgScore}<span className="text-sm font-semibold text-slate-400 dark:text-slate-500">/100</span></p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Portfolio viability index</p>
+            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{metrics.avgScore}<span className="text-sm font-semibold text-slate-400 dark:text-slate-400">/100</span></p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Portfolio viability index</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Strong Signals</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Strong Signals</span>
               <Award className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
             <p className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">{metrics.strongBuilds}</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Score ≥ 80 (High conviction)</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Score ≥ 80 (High conviction)</p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pivots Advised</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pivots Advised</span>
               <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             </div>
             <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2">{metrics.pivots}</p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Score &lt; 60 (Requires pivot)</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Score &lt; 60 (Requires pivot)</p>
           </div>
         </div>
 
@@ -262,7 +262,7 @@ export const DashboardPage: React.FC = () => {
             <h3 className="text-lg font-bold text-slate-900 dark:text-white font-['Space_Grotesk',sans-serif]">
               {searchQuery || industryFilter !== 'all' ? 'No matching ideas found' : 'No startup validations yet'}
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mt-2 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-300 max-w-md mx-auto mt-2 leading-relaxed">
               {searchQuery || industryFilter !== 'all'
                 ? 'Try clearing your search terms or selecting a different industry filter.'
                 : 'Submit your first concept to get deep market opportunity, competitor analysis, unit economics, and an MVP roadmap.'}
@@ -298,7 +298,7 @@ export const DashboardPage: React.FC = () => {
                   <div>
                     {/* Header: Industry & Score */}
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-full truncate max-w-[160px] border border-indigo-200/50 dark:border-indigo-800/60">
+                      <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/40 px-2.5 py-0.5 rounded-full truncate max-w-[160px] border border-indigo-200/50 dark:border-indigo-700/60">
                         {item.industry}
                       </span>
                       {score !== undefined ? (
@@ -319,7 +319,7 @@ export const DashboardPage: React.FC = () => {
 
                     {item.analysis?.verdict && (
                       <div className="mt-3.5 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">Verdict:</span>
+                        <span className="text-slate-500 dark:text-slate-300 font-medium">Verdict:</span>
                         <span className="font-bold text-slate-800 dark:text-slate-200 truncate max-w-[170px]">
                           {item.analysis.verdict}
                         </span>
@@ -328,7 +328,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
 
                   {/* Footer & Actions */}
-                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                     <span className="text-[11px]">
                       {new Date(item.created_at).toLocaleDateString(undefined, {
                         month: 'short',
@@ -350,7 +350,7 @@ export const DashboardPage: React.FC = () => {
                         className={`p-1.5 rounded-md text-xs font-semibold flex items-center gap-1 transition-colors ${
                           isSelectedForCompare
                             ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
                         }`}
                       >
                         <GitCompare className="w-3.5 h-3.5" />
@@ -363,7 +363,7 @@ export const DashboardPage: React.FC = () => {
                         id={`btn-delete-idea-${item.id}`}
                         onClick={e => handleDelete(e, item.id)}
                         title="Delete evaluation"
-                        className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                        className="p-1.5 rounded-md text-slate-400 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

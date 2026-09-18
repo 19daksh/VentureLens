@@ -186,19 +186,19 @@ export const AnalysisDetailPage: React.FC = () => {
                       >
                         {analysis.verdict || verdictTheme.title}
                       </span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      <span className="text-xs text-slate-500 dark:text-slate-300 font-medium">
                         Confidence: <strong className="text-slate-800 dark:text-slate-200 uppercase text-[10px]">{analysis.confidence_indicator || 'High'}</strong>
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Overall Score:</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-300 font-semibold">Overall Score:</span>
                       <ScoreBadge score={analysis.overall_score} size="xl" />
                     </div>
                   </div>
 
                   <div className="mt-6">
-                    <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                       Executive Summary
                     </h3>
                     <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mt-2.5 leading-relaxed font-normal">
@@ -209,30 +209,30 @@ export const AnalysisDetailPage: React.FC = () => {
                   {/* Dimension score chips */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Problem</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Problem</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.problem_score}</p>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Market</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Market</p>
                       <p className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{analysis.market_score}</p>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Competition</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Competition</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.competition_score}</p>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Revenue</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Revenue</p>
                       <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{analysis.revenue_score}</p>
                     </div>
                     <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center col-span-2 sm:col-span-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Technical</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Technical</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.technical_score}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Target Audience Context */}
-                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center gap-2">
                   <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
                   <span>
                     <strong className="text-slate-800 dark:text-slate-200">Target Buyer:</strong> {idea.target_audience}
@@ -243,15 +243,15 @@ export const AnalysisDetailPage: React.FC = () => {
               {/* Right 1 Col: Radar Chart */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs flex flex-col items-center justify-center transition-colors">
                 <div className="w-full flex items-center justify-between mb-2">
-                  <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Validation Radar
                   </h3>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">5 Dimensions</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">5 Dimensions</span>
                 </div>
                 <div className="w-full h-64">
                   <RadarScoreChart analysis={analysis} height={260} />
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-2">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-2">
                   Balanced shape indicates low asymmetric execution friction.
                 </p>
               </div>
@@ -298,26 +298,26 @@ export const AnalysisDetailPage: React.FC = () => {
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Problem & Customer Demand</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Evaluating pain intensity and authentic willingness-to-pay</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">Evaluating pain intensity and authentic willingness-to-pay</p>
                     </div>
                     <ScoreBadge score={analysis.problem_score} size="md" />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Problem Severity</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Problem Severity</p>
                       <p className="text-base font-bold text-slate-900 dark:text-white mt-1 capitalize">
                         {analysis.problem_validation?.problem_severity || (analysis.problem_validation as any)?.pain_severity || 'High'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Friction Frequency</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Friction Frequency</p>
                       <p className="text-base font-bold text-slate-900 dark:text-white mt-1 capitalize">
                         {analysis.problem_validation?.frequency || 'Daily'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Problem Score</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Problem Score</p>
                       <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-1 capitalize">
                         {analysis.problem_validation?.problem_strength_score ?? analysis.problem_score}/100
                       </p>
@@ -340,7 +340,7 @@ export const AnalysisDetailPage: React.FC = () => {
                       </h4>
                       <div className="space-y-2">
                         {analysis.problem_validation.customer_pain_points.map((pt, idx) => (
-                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                          <div key={idx} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 flex items-start gap-2">
                             <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                             <span>{pt}</span>
                           </div>
@@ -357,7 +357,7 @@ export const AnalysisDetailPage: React.FC = () => {
                       </h4>
                       <div className="space-y-2">
                         {(analysis.problem_validation?.existing_alternatives || (analysis.problem_validation as any)?.existing_workarounds || []).map((w: string, idx: number) => (
-                          <div key={idx} className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                          <div key={idx} className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/60 text-xs text-slate-700 dark:text-slate-200 flex items-start gap-2">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                             <span>{w}</span>
                           </div>
@@ -374,18 +374,18 @@ export const AnalysisDetailPage: React.FC = () => {
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">TAM / SAM / SOM Market Sizing</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Top-down and bottom-up market estimation</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5">Top-down and bottom-up market estimation</p>
                     </div>
                     <ScoreBadge score={analysis.market_score} size="md" />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Addressable Market (TAM)</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Addressable Market (TAM)</span>
                       <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
                         {analysis.market_analysis?.tam || '$10B+'}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">The total worldwide addressable demand for this category.</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-300 mt-2">The total worldwide addressable demand for this category.</p>
                     </div>
 
                     <div className="p-5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/40">
@@ -393,7 +393,7 @@ export const AnalysisDetailPage: React.FC = () => {
                       <p className="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
                         {analysis.market_analysis?.sam || '$1.5B'}
                       </p>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">The portion of TAM targeted by your current geography and tech segment.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">The portion of TAM targeted by your current geography and tech segment.</p>
                     </div>
 
                     <div className="p-5 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/40">
@@ -401,7 +401,7 @@ export const AnalysisDetailPage: React.FC = () => {
                       <p className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                         {analysis.market_analysis?.som || '$120M'}
                       </p>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-2">Realistic revenue target attainable within Years 1–3 of operations.</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">Realistic revenue target attainable within Years 1–3 of operations.</p>
                     </div>
                   </div>
 
