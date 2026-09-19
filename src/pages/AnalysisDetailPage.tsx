@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAnalysis } from '../context/AnalysisContext';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { RadarScoreChart } from '../components/RadarScoreChart';
+import { MarketResearchTab } from '../components/MarketResearch/MarketResearchTab';
+import { FinancialProjectionTab } from '../components/Financials/FinancialProjectionTab';
 import {
   Compass,
   ArrowLeft,
@@ -15,6 +17,7 @@ import {
   Target,
   Users,
   DollarSign,
+  Calculator,
   Cpu,
   ShieldAlert,
   Rocket,
@@ -25,6 +28,7 @@ import {
   ChevronRight,
   Printer,
   ExternalLink,
+  Globe,
 } from 'lucide-react';
 
 export const AnalysisDetailPage: React.FC = () => {
@@ -33,7 +37,7 @@ export const AnalysisDetailPage: React.FC = () => {
   const { getIdeaById, deleteIdea, toggleCompareId, selectedCompareIds, loading } = useAnalysis();
 
   const [activeTab, setActiveTab] = useState<
-    'problem' | 'market' | 'competitors' | 'business' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
+    'problem' | 'market' | 'market-research' | 'competitors' | 'business' | 'financials' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
   >('problem');
 
   const idea = id ? getIdeaById(id) : null;
@@ -262,8 +266,10 @@ export const AnalysisDetailPage: React.FC = () => {
               {[
                 { id: 'problem', label: '1. Problem & Demand', icon: Target },
                 { id: 'market', label: '2. Market Sizing (TAM)', icon: TrendingUp },
+                { id: 'market-research', label: '🌐 Real-Time Market Research', icon: Globe, highlight: true },
                 { id: 'competitors', label: '3. Competitors & Moat', icon: Users },
                 { id: 'business', label: '4. Business Model & Pricing', icon: DollarSign },
+                { id: 'financials', label: '💰 Financial Simulator', icon: Calculator, highlight: true },
                 { id: 'tech', label: '5. Tech Architecture', icon: Cpu },
                 { id: 'risks', label: '6. Risk Matrix', icon: ShieldAlert },
                 { id: 'mvp', label: '7. MVP Roadmap', icon: Rocket },
@@ -280,6 +286,8 @@ export const AnalysisDetailPage: React.FC = () => {
                     className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-xs'
+                        : tab.highlight
+                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/80 border border-blue-200 dark:border-blue-800'
                         : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
                     }`}
                   >
@@ -431,6 +439,13 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB: Real-Time Market Research */}
+              {activeTab === 'market-research' && (
+                <div className="animate-in fade-in">
+                  <MarketResearchTab idea={idea} />
                 </div>
               )}
 
@@ -600,6 +615,13 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB: Financial Projection Simulator */}
+              {activeTab === 'financials' && (
+                <div className="animate-in fade-in">
+                  <FinancialProjectionTab idea={idea} />
                 </div>
               )}
 

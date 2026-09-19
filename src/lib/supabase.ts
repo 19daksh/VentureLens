@@ -1,5 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { StartupIdea, FullAnalysis } from '../types/analysis';
+import { MarketResearchRecord } from '../types/marketResearch';
+import { FinancialProjectionRecord } from '../types/financialProjection';
 import { UserProfile } from '../types/auth';
 
 const getEnvVar = (key: string): string => {
@@ -39,6 +41,8 @@ const STORAGE_KEYS = {
   IDEAS: 'venturelens_startup_ideas',
   ANALYSES: 'venturelens_analyses',
   PROFILES: 'venturelens_profiles',
+  MARKET_RESEARCH: 'venturelens_market_research',
+  FINANCIAL_PROJECTIONS: 'venturelens_financial_projections',
 };
 
 // No mock data is seeded for the main application flow
@@ -387,5 +391,59 @@ export const localDb = {
     localStorage.setItem(STORAGE_KEYS.ANALYSES, JSON.stringify(allAnalyses));
 
     localStorage.removeItem(`${STORAGE_KEYS.PROFILES}_${userId}`);
+  },
+
+  saveMarketResearch(record: MarketResearchRecord): void {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.MARKET_RESEARCH);
+      const all: MarketResearchRecord[] = allStr ? JSON.parse(allStr) : [];
+      const idx = all.findIndex(r => r.analysis_id === record.analysis_id);
+      if (idx >= 0) {
+        all[idx] = record;
+      } else {
+        all.push(record);
+      }
+      localStorage.setItem(STORAGE_KEYS.MARKET_RESEARCH, JSON.stringify(all));
+    } catch (e) {
+      console.warn('Failed to save market research locally:', e);
+    }
+  },
+
+  getMarketResearchByAnalysisId(analysisId: string): MarketResearchRecord | null {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.MARKET_RESEARCH);
+      if (!allStr) return null;
+      const all: MarketResearchRecord[] = JSON.parse(allStr);
+      return all.find(r => r.analysis_id === analysisId) || null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveFinancialProjection(record: FinancialProjectionRecord): void {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.FINANCIAL_PROJECTIONS);
+      const all: FinancialProjectionRecord[] = allStr ? JSON.parse(allStr) : [];
+      const idx = all.findIndex(r => r.analysis_id === record.analysis_id);
+      if (idx >= 0) {
+        all[idx] = record;
+      } else {
+        all.push(record);
+      }
+      localStorage.setItem(STORAGE_KEYS.FINANCIAL_PROJECTIONS, JSON.stringify(all));
+    } catch (e) {
+      console.warn('Failed to save financial projection locally:', e);
+    }
+  },
+
+  getFinancialProjectionByAnalysisId(analysisId: string): FinancialProjectionRecord | null {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.FINANCIAL_PROJECTIONS);
+      if (!allStr) return null;
+      const all: FinancialProjectionRecord[] = JSON.parse(allStr);
+      return all.find(r => r.analysis_id === analysisId) || null;
+    } catch {
+      return null;
+    }
   }
 };

@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { StartupIdea, FullAnalysis, AnalysisRequestPayload } from '../types/analysis';
+import { MarketResearchRecord } from '../types/marketResearch';
+import { FinancialProjectionRecord } from '../types/financialProjection';
 import { useAuth, isUuid } from './AuthContext';
 import { supabase, isSupabaseConfigured, localDb } from '../lib/supabase';
 
@@ -16,6 +18,8 @@ interface AnalysisContextType {
   getIdeaById: (id: string) => StartupIdea | null;
   toggleCompareId: (id: string) => void;
   clearCompare: () => void;
+  saveMarketResearchForIdea: (ideaId: string, record: MarketResearchRecord) => void;
+  saveFinancialProjectionForIdea: (ideaId: string, record: FinancialProjectionRecord) => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -82,6 +86,16 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 }
               : undefined;
 
+            const savedMr = fullAnalysis ? localDb.getMarketResearchByAnalysisId(fullAnalysis.id) : null;
+            if (savedMr && fullAnalysis) {
+              fullAnalysis.market_research = savedMr;
+            }
+
+            const savedFp = fullAnalysis ? localDb.getFinancialProjectionByAnalysisId(fullAnalysis.id) : null;
+            if (savedFp && fullAnalysis) {
+              fullAnalysis.financial_projection = savedFp;
+            }
+
             return {
               id: item.id,
               user_id: item.user_id,
@@ -94,6 +108,8 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               created_at: item.created_at,
               updated_at: item.updated_at,
               analysis: fullAnalysis,
+              market_research: savedMr || undefined,
+              financial_projection: savedFp || undefined,
             };
           });
 
@@ -107,9 +123,19 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const localList = localDb.getIdeas(user.id);
       const enriched = localList.map(item => {
         const analysis = localDb.getAnalysisByIdeaId(item.id, user.id);
+        const savedMr = analysis ? localDb.getMarketResearchByAnalysisId(analysis.id) : null;
+        if (savedMr && analysis) {
+          analysis.market_research = savedMr;
+        }
+        const savedFp = analysis ? localDb.getFinancialProjectionByAnalysisId(analysis.id) : null;
+        if (savedFp && analysis) {
+          analysis.financial_projection = savedFp;
+        }
         return {
           ...item,
           analysis: analysis || undefined,
+          market_research: savedMr || undefined,
+          financial_projection: savedFp || undefined,
         };
       });
       setIdeas(enriched);
@@ -485,6 +511,44 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedCompareIds([]);
   };
 
+  const saveMarketResearchForIdea = (ideaId: string, record: MarketResearchRecord) => {
+    localDb.saveMarketResearch(record);
+    setIdeas(prev =>
+      prev.map(item => {
+        if (item.id === ideaId) {
+          const updatedAnalysis = item.analysis
+            ? { ...item.analysis, market_research: record }
+            : undefined;
+          return {
+            ...item,
+            market_research: record,
+            analysis: updatedAnalysis,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
+  const saveFinancialProjectionForIdea = (ideaId: string, record: FinancialProjectionRecord) => {
+    localDb.saveFinancialProjection(record);
+    setIdeas(prev =>
+      prev.map(item => {
+        if (item.id === ideaId) {
+          const updatedAnalysis = item.analysis
+            ? { ...item.analysis, financial_projection: record }
+            : undefined;
+          return {
+            ...item,
+            financial_projection: record,
+            analysis: updatedAnalysis,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   return (
     <AnalysisContext.Provider
       value={{
@@ -500,6 +564,8 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         getIdeaById,
         toggleCompareId,
         clearCompare,
+        saveMarketResearchForIdea,
+        saveFinancialProjectionForIdea,
       }}
     >
       {children}

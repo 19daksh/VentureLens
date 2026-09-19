@@ -202,10 +202,68 @@ export const ReportPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Financial Projections & Capital Modeling */}
+          {(idea.financial_projection || analysis.financial_projection) && (() => {
+            const fp = idea.financial_projection || analysis.financial_projection;
+            const sm = fp?.summary_metrics;
+            const ue = fp?.unit_economics;
+            const curr = fp?.currency || 'INR';
+            const currSymbol = curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : '₹';
+            return (
+              <div className="space-y-3 mb-8">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
+                  5. Financial Projections & Capital Model ({fp?.projection_period || 36} Months)
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Projected Revenue</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
+                      {currSymbol} {(sm?.total_revenue_projection || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Expenses</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
+                      {currSymbol} {(sm?.total_expenses_projection || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Break-Even Milestone</p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 print:text-emerald-600 mt-0.5">
+                      {sm?.break_even_month ? `Month ${sm.break_even_month}` : 'After Horizon'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Suggested Capital</p>
+                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 print:text-indigo-600 mt-0.5">
+                      {currSymbol} {(fp?.funding_analysis?.total_capital_recommendation || sm?.funding_gap || 0).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                {ue && (
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <span><strong>CAC:</strong> {ue.cac ? `${currSymbol} ${ue.cac}` : 'N/A'}</span>
+                    <span><strong>LTV:</strong> {ue.ltv ? `${currSymbol} ${ue.ltv}` : 'N/A'}</span>
+                    <span><strong>LTV:CAC:</strong> {ue.ltv_cac_ratio ? `${ue.ltv_cac_ratio}x` : 'N/A'}</span>
+                    <span><strong>Gross Margin:</strong> {ue.gross_margin_pct}%</span>
+                    <span><strong>Payback:</strong> {ue.payback_period_months ? `${ue.payback_period_months} mo` : 'N/A'}</span>
+                  </div>
+                )}
+
+                {fp?.ai_insights?.financial_summary && (
+                  <p className="text-xs text-slate-600 dark:text-slate-300 print:text-slate-600 leading-relaxed italic">
+                    &ldquo;{fp.ai_insights.financial_summary}&rdquo;
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Pre-Mortem Risks */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-              5. Pre-Mortem Risk Assessment
+              6. Pre-Mortem Risk Assessment
             </h3>
             <div className="space-y-2">
               {analysis.risks?.slice(0, 3).map((r, idx) => (

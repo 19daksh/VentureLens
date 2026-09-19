@@ -202,6 +202,8 @@ export const VentureLensAdvisor: React.FC = () => {
           mvp_phases: activeIdea.analysis?.mvp_roadmap?.phases,
           recommendations: activeIdea.analysis?.recommendations,
           go_to_market: activeIdea.analysis?.go_to_market,
+          market_research: activeIdea.market_research?.research_data || activeIdea.analysis?.market_research?.research_data,
+          financial_projection: activeIdea.financial_projection || activeIdea.analysis?.financial_projection,
         };
       }
 

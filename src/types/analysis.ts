@@ -1,3 +1,6 @@
+import { MarketResearchRecord } from './marketResearch';
+import { FinancialProjectionRecord } from './financialProjection';
+
 export interface StartupIdea {
   id: string;
   user_id: string;
@@ -10,7 +13,10 @@ export interface StartupIdea {
   created_at: string;
   updated_at: string;
   analysis?: FullAnalysis;
+  market_research?: MarketResearchRecord;
+  financial_projection?: FinancialProjectionRecord;
 }
+
 
 export interface Competitor {
   name: string;
@@ -144,6 +150,8 @@ export interface FullAnalysis {
   recommendations: Recommendation[];
   go_to_market: GoToMarketData;
   final_verdict: FinalVerdictData;
+  market_research?: MarketResearchRecord;
+  financial_projection?: FinancialProjectionRecord;
 }
 
 export interface AnalysisRequestPayload {

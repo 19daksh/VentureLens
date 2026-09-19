@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
+import { MarketResearchData } from '../src/types/marketResearch.ts';
 
 // Initialize server-side Gemini client with system environment variable
 function getGeminiClient(): GoogleGenAI {
@@ -19,19 +20,24 @@ function getGeminiClient(): GoogleGenAI {
 
 // System instruction conforming to specifications
 export const ADVISOR_SYSTEM_INSTRUCTION = `You are VentureLens AI Advisor, an AI startup strategy assistant.
-Help founders understand their startup idea, interpret their VentureLens analysis, identify weaknesses, and develop practical next steps.
+Help founders understand their startup idea, interpret their VentureLens analysis, evaluate current real-time market research, identify weaknesses, and develop practical next steps.
 
 Core Behavioral Directives:
 1. Be concise, practical, objective, and honest. Never flatter without substance or sugarcoat serious structural risks.
 2. Do not guarantee startup success. Never make unsubstantiated claims or imply that funding or profitability is guaranteed.
 3. Do not invent real-world market statistics, competitors, customer numbers, or financial results.
-4. When the user's saved analysis provides information, use it as the primary, authoritative context.
-5. If specific data or context is missing from the analysis, explicitly state that it was not captured in the evaluation rather than inventing facts.
-6. When giving advice based on the user's analysis, clearly distinguish between:
+4. When the user's saved analysis or real-time market research provides information, use it as the primary, authoritative context.
+5. If specific data or context is missing from the analysis, explicitly state that it was not captured rather than inventing facts.
+6. When answering questions about competitors, market signals, pricing, or trends:
+   - When referencing current market findings, explicitly distinguish: "According to current market research..."
+   - Separate verified facts and public source claims from AI strategic recommendations and inferences.
+   - For example, if asked "Which competitor should I worry about?", reference verified competitors, observable gaps, and pricing from the market research, and distinguish those findings from your strategic positioning recommendations.
+7. Clearly distinguish between:
+   - [According to Current Market Research]: Verified web-grounded competitors, recent developments, trends, and pricing signals.
    - [From Your Analysis]: Information retrieved directly from their VentureLens scorecard/report.
    - [General Business Guidance]: Standard venture frameworks (e.g., Lean Startup, Mom Test, CAC/LTV benchmarks).
    - [Assumptions to Validate]: Key hypotheses that the founder must test with real customers.
-7. Format your responses with structured Markdown: clean headings (###), bullet points, bold key phrases, and concise numbered action items.`;
+8. Format your responses with structured Markdown: clean headings (###), bullet points, bold key phrases, and concise numbered action items.`;
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -63,6 +69,8 @@ export interface AnalysisContextData {
   key_insights?: string;
   customer_pain_points?: string[];
   existing_alternatives?: string[];
+  market_research?: MarketResearchData;
+
   competitors?: Array<{
     name: string;
     description?: string;
@@ -113,6 +121,7 @@ export interface AnalysisContextData {
     positioning?: string;
     early_validation_strategy?: string;
   };
+  financial_projection?: any;
 }
 
 /**
@@ -232,6 +241,126 @@ export function buildContextGroundingString(context: AnalysisContextData): strin
     if (gtm.launch_strategy) parts.push(`- Launch Strategy: ${gtm.launch_strategy}`);
     if (gtm.positioning) parts.push(`- Positioning: ${gtm.positioning}`);
     if (gtm.early_validation_strategy) parts.push(`- Early Validation: ${gtm.early_validation_strategy}`);
+  }
+
+  if (context.market_research) {
+    const mr = context.market_research;
+    parts.push(`\n=== REAL-TIME GOOGLE SEARCH MARKET RESEARCH ===`);
+    if (mr.market_overview) {
+      parts.push(`CURRENT MARKET STATE: ${mr.market_overview.market_state}`);
+      parts.push(`MARKET SUMMARY: ${mr.market_overview.summary}`);
+      if (mr.market_overview.recent_statistics?.length) {
+        parts.push(`RECENT STATISTICS:`);
+        mr.market_overview.recent_statistics.forEach((s) => parts.push(`  - ${s}`));
+      }
+    }
+
+    if (mr.trends && mr.trends.length > 0) {
+      parts.push(`\nCURRENT MARKET TRENDS:`);
+      mr.trends.forEach((t) => {
+        parts.push(`- ${t.title}: ${t.description} (Why it matters: ${t.why_it_matters} | Source: ${t.source})`);
+      });
+    }
+
+    if (mr.customer_demand && mr.customer_demand.length > 0) {
+      parts.push(`\nCUSTOMER DEMAND SIGNALS:`);
+      mr.customer_demand.forEach((cd) => {
+        parts.push(`- Signal: ${cd.signal} (Evidence: ${cd.evidence} | Interpretation: ${cd.interpretation})`);
+      });
+    }
+
+    if (mr.competitors && mr.competitors.length > 0) {
+      parts.push(`\nRESEARCHED COMPETITOR LANDSCAPE:`);
+      mr.competitors.forEach((c) => {
+        parts.push(`- ${c.name} (${c.website || 'No website link'}): ${c.description}`);
+        parts.push(`  * Target Audience: ${c.target_audience}`);
+        parts.push(`  * Pricing: ${c.pricing}`);
+        parts.push(`  * Market Positioning: ${c.positioning}`);
+        if (c.strengths?.length) parts.push(`  * Strengths: ${c.strengths.join(', ')}`);
+        if (c.observed_gaps?.length) parts.push(`  * Observed Gaps: ${c.observed_gaps.join(', ')}`);
+      });
+    }
+
+    if (mr.competitive_gaps && mr.competitive_gaps.length > 0) {
+      parts.push(`\nCOMPETITIVE GAPS (Research-based opportunities):`);
+      mr.competitive_gaps.forEach((g) => {
+        parts.push(`- [${g.gap_type}] ${g.opportunity} (Evidence: ${g.evidence})`);
+      });
+    }
+
+    if (mr.opportunities && mr.opportunities.length > 0) {
+      parts.push(`\nMARKET OPPORTUNITIES:`);
+      mr.opportunities.forEach((o) => {
+        parts.push(`- ${o.title}: ${o.description} (Evidence: ${o.evidence} | Relevance: ${o.relevance})`);
+      });
+    }
+
+    if (mr.threats && mr.threats.length > 0) {
+      parts.push(`\nMARKET THREATS:`);
+      mr.threats.forEach((th) => {
+        parts.push(`- [${th.threat_type}] ${th.title}: ${th.description} (Evidence: ${th.evidence})`);
+      });
+    }
+
+    if (mr.recent_developments && mr.recent_developments.length > 0) {
+      parts.push(`\nRECENT DEVELOPMENTS (Past 12 Months):`);
+      mr.recent_developments.forEach((rd) => {
+        parts.push(`- [${rd.date}] ${rd.title}: ${rd.description} (Source: ${rd.source})`);
+      });
+    }
+    parts.push(`=== END OF REAL-TIME MARKET RESEARCH ===`);
+  }
+
+  if (context.financial_projection) {
+    const fp = context.financial_projection;
+    const curr = fp.currency || 'INR';
+    parts.push(`\n=== FOUNDER FINANCIAL PROJECTION SIMULATION ===`);
+    parts.push(`- Projection Window: ${fp.projection_period || 36} Months`);
+    parts.push(`- Base Currency: ${curr}`);
+    if (fp.assumptions) {
+      const a = fp.assumptions;
+      parts.push(`KEY MODEL ASSUMPTIONS:`);
+      parts.push(`- Business Model: ${a.business_model || 'SaaS'}`);
+      parts.push(`- Pricing: ${curr} ${a.pricing?.average_price} (${a.pricing?.billing_period})`);
+      parts.push(`- Customer Base: Starting ${a.customers?.starting_customers}, Monthly Growth ${a.customers?.monthly_growth_rate}%, Churn ${a.customers?.monthly_churn_rate}%`);
+      const totalFixed = Object.values(a.fixed_costs || {}).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+      parts.push(`- Fixed Monthly Costs: ${curr} ${totalFixed.toLocaleString()}`);
+      parts.push(`- Variable Cost per Customer: ${curr} ${a.variable_costs?.cost_per_customer || 0}`);
+      parts.push(`- Starting Capital: ${curr} ${(a.funding?.initial_capital || 0).toLocaleString()}`);
+    }
+    if (fp.summary_metrics) {
+      const sm = fp.summary_metrics;
+      parts.push(`PROJECTION SUMMARY OUTCOMES:`);
+      parts.push(`- Projected Total Revenue: ${curr} ${(sm.total_revenue_projection || 0).toLocaleString()}`);
+      parts.push(`- Total Expenses: ${curr} ${(sm.total_expenses_projection || 0).toLocaleString()}`);
+      parts.push(`- Total Net Profit: ${curr} ${(sm.total_profit_projection || 0).toLocaleString()}`);
+      parts.push(`- Break-Even Month: ${sm.break_even_month ? `Month ${sm.break_even_month}` : 'Not reached within window'}`);
+      parts.push(`- Estimated Runway: ${sm.current_runway_months} months`);
+      parts.push(`- Peak Monthly Burn: ${curr} ${(sm.peak_monthly_burn || 0).toLocaleString()}`);
+      parts.push(`- Funding Gap: ${curr} ${(sm.funding_gap || 0).toLocaleString()}`);
+    }
+    if (fp.unit_economics) {
+      const ue = fp.unit_economics;
+      parts.push(`UNIT ECONOMICS:`);
+      parts.push(`- CAC: ${ue.cac ? `${curr} ${ue.cac}` : 'Insufficient data'}`);
+      parts.push(`- LTV: ${ue.ltv ? `${curr} ${ue.ltv}` : 'Insufficient data'}`);
+      parts.push(`- LTV:CAC Ratio: ${ue.ltv_cac_ratio ? `${ue.ltv_cac_ratio}x` : 'N/A'}`);
+      parts.push(`- Gross Margin: ${ue.gross_margin_pct}%`);
+      parts.push(`- CAC Payback Period: ${ue.payback_period_months ? `${ue.payback_period_months} months` : 'N/A'}`);
+    }
+    if (fp.scenarios) {
+      parts.push(`SCENARIOS COMPARISON:`);
+      parts.push(`- Conservative: Revenue ${curr} ${(fp.scenarios.conservative?.total_revenue || 0).toLocaleString()} (Break-even: ${fp.scenarios.conservative?.break_even_month ? `M${fp.scenarios.conservative?.break_even_month}` : 'None'})`);
+      parts.push(`- Base: Revenue ${curr} ${(fp.scenarios.base?.total_revenue || 0).toLocaleString()} (Break-even: ${fp.scenarios.base?.break_even_month ? `M${fp.scenarios.base?.break_even_month}` : 'None'})`);
+      parts.push(`- Optimistic: Revenue ${curr} ${(fp.scenarios.optimistic?.total_revenue || 0).toLocaleString()} (Break-even: ${fp.scenarios.optimistic?.break_even_month ? `M${fp.scenarios.optimistic?.break_even_month}` : 'None'})`);
+    }
+    if (fp.ai_insights) {
+      parts.push(`CURRENT AI FINANCIAL INSIGHTS:`);
+      parts.push(`- Summary: ${fp.ai_insights.financial_summary}`);
+      if (fp.ai_insights.key_drivers?.length) parts.push(`- Key Drivers: ${fp.ai_insights.key_drivers.join('; ')}`);
+      if (fp.ai_insights.financial_risks?.length) parts.push(`- Financial Risks: ${fp.ai_insights.financial_risks.join('; ')}`);
+    }
+    parts.push(`=== END OF FINANCIAL PROJECTION SIMULATION ===`);
   }
 
   parts.push(`=== END OF SAVED ANALYSIS CONTEXT ===\n`);
@@ -401,6 +530,36 @@ export async function fetchVerifiedAnalysis(
         early_validation_strategy: gtm.early_validation_strategy,
       },
     };
+
+    // Optionally check if market_research exists for this analysis
+    try {
+      const { data: mrRow } = await supabase
+        .from('market_research')
+        .select('research_data')
+        .eq('analysis_id', analysis.id)
+        .maybeSingle();
+
+      if (mrRow?.research_data) {
+        context.market_research = mrRow.research_data;
+      }
+    } catch {
+      // ignore if table not created or error
+    }
+
+    // Optionally check if financial_projections exist for this analysis
+    try {
+      const { data: fpRow } = await supabase
+        .from('financial_projections')
+        .select('*')
+        .eq('analysis_id', analysis.id)
+        .maybeSingle();
+
+      if (fpRow) {
+        context.financial_projection = fpRow;
+      }
+    } catch {
+      // ignore if table not created or error
+    }
 
     return { context, authorized: true };
   } catch (err: any) {

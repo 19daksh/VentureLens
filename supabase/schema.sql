@@ -332,3 +332,69 @@ CREATE POLICY "Users can delete own recommendations" ON public.recommendations
   FOR DELETE USING (
     EXISTS (SELECT 1 FROM public.analyses WHERE analyses.id = recommendations.analysis_id AND analyses.user_id = auth.uid())
   );
+
+-- 10. REAL-TIME MARKET RESEARCH TABLE
+CREATE TABLE IF NOT EXISTS public.market_research (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  research_data JSONB NOT NULL,
+  researched_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT unique_analysis_market_research UNIQUE (analysis_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_market_research_analysis_id ON public.market_research(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_market_research_user_id ON public.market_research(user_id);
+
+ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own market research" ON public.market_research
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own market research" ON public.market_research
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own market research" ON public.market_research
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own market research" ON public.market_research
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- 11. FINANCIAL PROJECTIONS TABLE
+CREATE TABLE IF NOT EXISTS public.financial_projections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  projection_period INTEGER NOT NULL DEFAULT 36,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  assumptions JSONB NOT NULL,
+  monthly_projection JSONB NOT NULL,
+  scenarios JSONB NOT NULL,
+  unit_economics JSONB NOT NULL,
+  funding_analysis JSONB NOT NULL,
+  ai_insights JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT unique_analysis_financial_projection UNIQUE (analysis_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_financial_projections_analysis_id ON public.financial_projections(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_financial_projections_user_id ON public.financial_projections(user_id);
+
+ALTER TABLE public.financial_projections ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own financial projections" ON public.financial_projections
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own financial projections" ON public.financial_projections
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own financial projections" ON public.financial_projections
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own financial projections" ON public.financial_projections
+  FOR DELETE USING (auth.uid() = user_id);
+
+
