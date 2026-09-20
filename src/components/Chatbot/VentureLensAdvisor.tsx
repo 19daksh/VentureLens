@@ -204,6 +204,7 @@ export const VentureLensAdvisor: React.FC = () => {
           go_to_market: activeIdea.analysis?.go_to_market,
           market_research: activeIdea.market_research?.research_data || activeIdea.analysis?.market_research?.research_data,
           financial_projection: activeIdea.financial_projection || activeIdea.analysis?.financial_projection,
+          competitor_intelligence: activeIdea.competitor_intelligence?.research_data || activeIdea.analysis?.competitor_intelligence?.research_data,
         };
       }
 
@@ -344,9 +345,12 @@ export const VentureLensAdvisor: React.FC = () => {
     if (activeIdea) {
       return [
         { label: '📊 Explain my score', prompt: 'Explain in detail why I received this score and where the primary deductions occurred.' },
+        { label: '🕵️ Who are my biggest competitors?', prompt: 'Who are my direct and indirect competitors based on the latest competitor intelligence, and how is the market structured?' },
+        { label: '💰 How does competitor pricing compare?', prompt: 'Compare my proposed pricing with current competitor pricing tiers from the research. Where are the pricing gaps?' },
+        { label: '🧩 What features am I missing?', prompt: 'Looking at the competitor feature matrix, what capabilities do competitors have that I should consider or avoid?' },
+        { label: '⚡ What changed recently in market?', prompt: 'What recent developments, funding rounds, or product launches occurred among competitors in the past 12 months?' },
         { label: '⚠️ Biggest weakness', prompt: 'Based on my saved evaluation, what is the single biggest weakness of this startup concept?' },
         { label: '💡 Improve business model', prompt: 'How can I improve my business model, pricing strategy, and unit economics?' },
-        { label: '⚔️ Analyze my competitors', prompt: 'Analyze the competitors listed in my analysis and explain my best differentiation opportunity.' },
         { label: '🚀 What should I build first?', prompt: 'Looking at the MVP roadmap, what specific features must I build first, and what should I delay?' },
         { label: '👥 How do I get first 100 users?', prompt: 'Given my target audience and go-to-market strategy, how can I acquire my first 100 users with minimal budget?' },
         { label: '📅 Create 30-day action plan', prompt: 'Create a structured, weekly 30-day action plan for me based on the top recommendations.' },

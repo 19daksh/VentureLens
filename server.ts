@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { createClient } from '@supabase/supabase-js';
 import { runStartupIdeaAnalysis } from './server/geminiService.ts';
 import {
   executeMarketResearch,
@@ -14,6 +15,12 @@ import {
   saveFinancialProjectionToSupabase,
   getFinancialProjectionFromSupabase,
 } from './server/financialProjectionService.ts';
+import {
+  executeCompetitorIntelligence,
+  saveCompetitorIntelligenceToSupabase,
+  getCompetitorIntelligenceFromSupabase,
+  saveCompetitorTrackingToSupabase,
+} from './server/competitorIntelligenceService.ts';
 import {
   streamAdvisorResponse,
   fetchVerifiedAnalysis,
@@ -98,25 +105,83 @@ async function startServer() {
 
   // 3. Real-Time Market Research Endpoint with Google Search Grounding
   app.post('/api/market-research', async (req, res) => {
+    // Explicitly guarantee Content-Type: application/json
+    res.setHeader('Content-Type', 'application/json');
+
     try {
       const { analysisId, ideaData, clientContext } = req.body;
 
-      const title = ideaData?.title || clientContext?.title;
-      const description = ideaData?.description || clientContext?.description;
-      const industry = ideaData?.industry || clientContext?.industry;
-      const target_audience = ideaData?.target_audience || clientContext?.target_audience;
-      const business_model = ideaData?.business_model || clientContext?.recommended_business_model;
+      const title = ideaData?.title || clientContext?.title || req.body.title;
+      const description = ideaData?.description || clientContext?.description || req.body.description;
+      const industry = ideaData?.industry || clientContext?.industry || req.body.industry;
+      const target_audience = ideaData?.target_audience || clientContext?.target_audience || req.body.target_audience;
+      const business_model = ideaData?.business_model || clientContext?.recommended_business_model || req.body.business_model;
 
       if (!title || !description) {
         return res.status(400).json({
           success: false,
           error: 'Please provide valid startup details (title and description) for market research.',
+          details: 'Missing required startup title or description in request payload.',
         });
       }
 
       const authHeader = req.headers.authorization;
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
       const isDemoSession = token === 'demo-token' || clientContext?.isDemo;
+      let authenticatedUserId: string | null = null;
+
+      // Authenticate user & verify ownership against database (do not trust user-supplied analysis data)
+      if (token && !isDemoSession) {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+        if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false },
+            global: { headers: { Authorization: `Bearer ${token}` } },
+          });
+
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser(token);
+
+          if (userError || !user) {
+            return res.status(401).json({
+              success: false,
+              error: 'Authentication required. Please log in to run market research.',
+              details: userError?.message || 'Invalid or expired user session token.',
+            });
+          }
+
+          authenticatedUserId = user.id;
+
+          // Verify ownership if an existing analysisId was provided
+          if (analysisId && typeof analysisId === 'string' && analysisId !== 'local' && !analysisId.startsWith('local-')) {
+            const { data: analysisRows, error: analysisQueryError } = await supabase
+              .from('analyses')
+              .select('id, user_id, startup_ideas(id, user_id)')
+              .or(`id.eq.${analysisId},idea_id.eq.${analysisId}`)
+              .limit(1);
+
+            if (!analysisQueryError && analysisRows && analysisRows.length > 0) {
+              const analysisRecord = analysisRows[0];
+              const ideaRecord = (analysisRecord.startup_ideas as any);
+              const isOwner =
+                analysisRecord.user_id === user.id ||
+                ideaRecord?.user_id === user.id;
+
+              if (!isOwner) {
+                return res.status(403).json({
+                  success: false,
+                  error: 'Unauthorized: You do not have permission to run market research on this analysis.',
+                  details: 'Startup analysis does not belong to the authenticated user.',
+                });
+              }
+            }
+          }
+        }
+      }
 
       console.log(`[VentureLens AI] Starting Google Search grounded market research for: "${title}" (${industry})...`);
 
@@ -141,23 +206,34 @@ async function startServer() {
       console.log(`[VentureLens AI] Market research completed successfully. Extracted ${researchData.trends.length} trends, ${researchData.competitors.length} competitors, ${researchData.sources.length} sources.`);
 
       let savedRecord: any = null;
-      // Persist to Supabase if token and analysisId are available
-      if (token && !isDemoSession && analysisId) {
-        const userId = req.body.userId || clientContext?.user_id;
-        if (userId) {
-          savedRecord = await saveMarketResearchToSupabase({
-            analysisId,
-            userId,
-            userToken: token,
-            researchData,
-          });
-        }
+      // Persist to Supabase if authenticated and analysisId are available
+      if (token && !isDemoSession && analysisId && authenticatedUserId) {
+        savedRecord = await saveMarketResearchToSupabase({
+          analysisId,
+          userId: authenticatedUserId,
+          userToken: token,
+          researchData,
+        });
       }
 
+      // Return both requested response structures: exact prompt specification (research) and app internal (data)
       return res.status(200).json({
         success: true,
+        research: {
+          marketOverview: researchData.market_overview?.summary || '',
+          marketTrends: researchData.trends || [],
+          customerDemandSignals: researchData.customer_demand || [],
+          competitorLandscape: researchData.competitors || [],
+          competitiveGaps: researchData.competitive_gaps || [],
+          marketOpportunities: researchData.opportunities || [],
+          marketThreats: researchData.threats || [],
+          recentDevelopments: researchData.recent_developments || [],
+          sources: researchData.sources || [],
+        },
         data: savedRecord || {
+          id: 'mr-' + Date.now(),
           analysis_id: analysisId || 'local',
+          user_id: authenticatedUserId || (isDemoSession ? '00000000-0000-4000-8000-000000000001' : 'local'),
           research_data: researchData,
           researched_at: new Date().toISOString(),
           created_at: new Date().toISOString(),
@@ -166,16 +242,11 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error('[VentureLens AI] Market Research Error:', error);
-      const isUnavailable =
-        error?.message?.includes('temporarily') ||
-        error?.message?.includes('quota') ||
-        error?.message?.includes('Search grounding');
-
-      return res.status(503).json({
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(error.statusCode || 500).json({
         success: false,
-        error: isUnavailable
-          ? 'Market research is temporarily unavailable. Your existing VentureLens analysis is still available.'
-          : error?.message || 'Market research is temporarily unavailable. Your existing VentureLens analysis is still available.',
+        error: 'Market research service is temporarily unavailable. Please try again.',
+        details: error?.message || 'An unexpected error occurred during market research execution.',
         canRetry: true,
       });
     }
@@ -183,6 +254,7 @@ async function startServer() {
 
   // 4. Fetch saved market research for an analysis
   app.get('/api/market-research/:analysisId', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
     try {
       const { analysisId } = req.params;
       const authHeader = req.headers.authorization;
@@ -301,7 +373,265 @@ async function startServer() {
     }
   });
 
-  // 6. VentureLens AI Advisor Conversational Endpoint
+  // 6. Real-Time Competitor Intelligence Endpoint with Google Search Grounding
+  app.post('/api/competitor-intelligence', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { analysisId, ideaData, clientContext, previousIntelligence } = req.body;
+
+      const title = ideaData?.title || clientContext?.title || req.body.title;
+      const description = ideaData?.description || clientContext?.description || req.body.description;
+      const industry = ideaData?.industry || clientContext?.industry || req.body.industry;
+      const target_audience = ideaData?.target_audience || clientContext?.target_audience || req.body.target_audience;
+      const business_model = ideaData?.business_model || clientContext?.recommended_business_model || req.body.business_model;
+      const existing_competitors = ideaData?.existing_competitors || clientContext?.competitors || req.body.existing_competitors || [];
+
+      if (!title || !description) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please provide valid startup details (title and description) for competitor intelligence.',
+        });
+      }
+
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+      const isDemoSession = token === 'demo-token' || clientContext?.isDemo;
+      let authenticatedUserId: string | null = null;
+
+      // Authenticate with Supabase server-side if token is provided
+      if (token && !isDemoSession) {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+        if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false },
+            global: {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          });
+
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser(token);
+
+          if (userError || !user) {
+            return res.status(401).json({
+              success: false,
+              error: 'Authentication required. Please log in to run competitor intelligence.',
+              details: userError?.message || 'Invalid or expired user session token.',
+            });
+          }
+
+          authenticatedUserId = user.id;
+
+          // Verify ownership if an existing analysisId was provided
+          if (analysisId && typeof analysisId === 'string' && analysisId !== 'local' && !analysisId.startsWith('local-')) {
+            const { data: analysisRows, error: analysisQueryError } = await supabase
+              .from('analyses')
+              .select('id, user_id, startup_ideas(id, user_id)')
+              .or(`id.eq.${analysisId},idea_id.eq.${analysisId}`)
+              .limit(1);
+
+            if (!analysisQueryError && analysisRows && analysisRows.length > 0) {
+              const analysisRecord = analysisRows[0];
+              const ideaRecord = (analysisRecord.startup_ideas as any);
+              const isOwner =
+                analysisRecord.user_id === user.id ||
+                ideaRecord?.user_id === user.id;
+
+              if (!isOwner) {
+                return res.status(403).json({
+                  success: false,
+                  error: 'Unauthorized: You do not have permission to run competitor intelligence on this analysis.',
+                  details: 'Startup analysis does not belong to the authenticated user.',
+                });
+              }
+            }
+          }
+        }
+      }
+
+      console.log(`[VentureLens AI] Starting Google Search grounded competitor intelligence for: "${title}"...`);
+
+      const intelligenceData = await executeCompetitorIntelligence({
+        title,
+        description,
+        industry: industry || 'Technology',
+        target_audience: target_audience || 'General Market',
+        business_model,
+        existing_competitors,
+        existing_analysis: clientContext
+          ? {
+              tam: clientContext.tam,
+              overall_score: clientContext.overall_score,
+              verdict_type: clientContext.verdict_type,
+            }
+          : undefined,
+        previous_intelligence: previousIntelligence,
+      });
+
+      console.log(
+        `[VentureLens AI] Competitor intelligence completed: ${intelligenceData.competitors.length} competitors, ${intelligenceData.feature_matrix.length} features, ${intelligenceData.sources.length} sources.`
+      );
+
+      let savedRecord: any = null;
+      if (token && !isDemoSession && analysisId && authenticatedUserId) {
+        savedRecord = await saveCompetitorIntelligenceToSupabase({
+          analysisId,
+          userId: authenticatedUserId,
+          userToken: token,
+          researchData: intelligenceData,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        intelligence: intelligenceData,
+        data: savedRecord || {
+          id: `ci-${analysisId || 'local'}-${Date.now()}`,
+          analysis_id: analysisId || 'local',
+          user_id: authenticatedUserId || (isDemoSession ? '00000000-0000-4000-8000-000000000001' : 'local'),
+          research_data: intelligenceData,
+          intelligence_data: intelligenceData,
+          researched_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      });
+    } catch (error: any) {
+      console.error('[VentureLens AI] Competitor Intelligence Error:', error);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(error?.statusCode || 500).json({
+        success: false,
+        error: 'Competitor intelligence service is temporarily unavailable. Please try again.',
+        details: error?.message || 'An unexpected error occurred during competitor intelligence execution.',
+        canRetry: true,
+      });
+    }
+  });
+
+  // Fetch saved competitor intelligence for an analysis
+  app.get('/api/competitor-intelligence/:analysisId', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { analysisId } = req.params;
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+      if (!token || token === 'demo-token') {
+        return res.status(200).json({ success: true, data: null });
+      }
+
+      // Verify user token with Supabase
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+      if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: { persistSession: false },
+          global: {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        });
+
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser(token);
+
+        if (userError || !user) {
+          return res.status(401).json({ success: false, error: 'Unauthorized session.' });
+        }
+
+        // Verify ownership
+        if (analysisId && analysisId !== 'local' && !analysisId.startsWith('local-')) {
+          const { data: analysisRows } = await supabase
+            .from('analyses')
+            .select('id, user_id, startup_ideas(id, user_id)')
+            .or(`id.eq.${analysisId},idea_id.eq.${analysisId}`)
+            .limit(1);
+
+          if (analysisRows && analysisRows.length > 0) {
+            const analysisRecord = analysisRows[0];
+            const ideaRecord = (analysisRecord.startup_ideas as any);
+            const isOwner =
+              analysisRecord.user_id === user.id ||
+              ideaRecord?.user_id === user.id;
+
+            if (!isOwner) {
+              return res.status(403).json({ success: false, error: 'Forbidden: Access denied to this analysis.' });
+            }
+          }
+        }
+      }
+
+      const record = await getCompetitorIntelligenceFromSupabase({
+        analysisId,
+        userToken: token,
+      });
+
+      return res.status(200).json({ success: true, data: record });
+    } catch (err: any) {
+      console.error('[VentureLens AI] Fetch Competitor Intelligence Error:', err);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Toggle competitor tracking/pinned state
+  app.post('/api/competitor-intelligence/track', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { analysisId, competitorId, isPinned } = req.body;
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+      if (!analysisId || !competitorId) {
+        return res.status(400).json({ success: false, error: 'Missing analysisId or competitorId' });
+      }
+
+      if (token && token !== 'demo-token') {
+        const supabaseUrl = process.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+        if (supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http')) {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false },
+            global: {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          });
+
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser(token);
+
+          if (userError || !user) {
+            return res.status(401).json({ success: false, error: 'Unauthorized.' });
+          }
+
+          await saveCompetitorTrackingToSupabase({
+            analysisId,
+            userId: user.id,
+            userToken: token,
+            competitorId,
+            isPinned: Boolean(isPinned),
+          });
+        }
+      }
+
+      return res.status(200).json({ success: true, isPinned: Boolean(isPinned) });
+    } catch (err: any) {
+      console.error('[VentureLens AI] Competitor Tracking Error:', err);
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 7. VentureLens AI Advisor Conversational Endpoint
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, history = [], analysisId, stream = true, clientContext } = req.body;
@@ -395,6 +725,16 @@ async function startServer() {
         error: 'VentureLens AI is temporarily unavailable. Please try again.',
       });
     }
+  });
+
+  // 404 Handler for all API routes - Guarantees that /api/* NEVER returns an HTML page
+  app.all('/api/*', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(404).json({
+      success: false,
+      error: `API route not found: ${req.method} ${req.path}`,
+      details: 'The requested API endpoint does not exist. All API endpoints return JSON.',
+    });
   });
 
   // Vite development middleware or production static serving

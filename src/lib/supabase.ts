@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { StartupIdea, FullAnalysis } from '../types/analysis';
 import { MarketResearchRecord } from '../types/marketResearch';
 import { FinancialProjectionRecord } from '../types/financialProjection';
+import { CompetitorIntelligenceRecord } from '../types/competitorIntelligence';
 import { UserProfile } from '../types/auth';
 
 const getEnvVar = (key: string): string => {
@@ -43,6 +44,7 @@ const STORAGE_KEYS = {
   PROFILES: 'venturelens_profiles',
   MARKET_RESEARCH: 'venturelens_market_research',
   FINANCIAL_PROJECTIONS: 'venturelens_financial_projections',
+  COMPETITOR_INTELLIGENCE: 'venturelens_competitor_intelligence',
 };
 
 // No mock data is seeded for the main application flow
@@ -441,6 +443,33 @@ export const localDb = {
       const allStr = localStorage.getItem(STORAGE_KEYS.FINANCIAL_PROJECTIONS);
       if (!allStr) return null;
       const all: FinancialProjectionRecord[] = JSON.parse(allStr);
+      return all.find(r => r.analysis_id === analysisId) || null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveCompetitorIntelligence(record: CompetitorIntelligenceRecord): void {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.COMPETITOR_INTELLIGENCE);
+      const all: CompetitorIntelligenceRecord[] = allStr ? JSON.parse(allStr) : [];
+      const idx = all.findIndex(r => r.analysis_id === record.analysis_id);
+      if (idx >= 0) {
+        all[idx] = record;
+      } else {
+        all.push(record);
+      }
+      localStorage.setItem(STORAGE_KEYS.COMPETITOR_INTELLIGENCE, JSON.stringify(all));
+    } catch (e) {
+      console.warn('Failed to save competitor intelligence locally:', e);
+    }
+  },
+
+  getCompetitorIntelligenceByAnalysisId(analysisId: string): CompetitorIntelligenceRecord | null {
+    try {
+      const allStr = localStorage.getItem(STORAGE_KEYS.COMPETITOR_INTELLIGENCE);
+      if (!allStr) return null;
+      const all: CompetitorIntelligenceRecord[] = JSON.parse(allStr);
       return all.find(r => r.analysis_id === analysisId) || null;
     } catch {
       return null;

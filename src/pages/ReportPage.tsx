@@ -190,6 +190,60 @@ export const ReportPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Grounded Competitor Intelligence & Moat Analysis */}
+          {(idea.competitor_intelligence || analysis.competitor_intelligence) && (() => {
+            const ci = idea.competitor_intelligence || analysis.competitor_intelligence;
+            const data = ci?.intelligence_data;
+            if (!data) return null;
+            return (
+              <div className="space-y-3 mb-8">
+                <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
+                  4. Grounded Competitor Intelligence & Strategic Moat
+                </h3>
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-xl border border-slate-200 dark:border-slate-700 print:border-slate-200 space-y-3">
+                  {data.ai_insights?.landscape_summary && (
+                    <p className="text-xs text-slate-700 dark:text-slate-300 print:text-slate-700 leading-relaxed italic">
+                      &ldquo;{data.ai_insights.landscape_summary}&rdquo;
+                    </p>
+                  )}
+
+                  {data.competitor_profiles && data.competitor_profiles.length > 0 && (
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                        Key Tracked Competitors & Observed Pricing Tiers
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        {data.competitor_profiles.slice(0, 4).map((comp) => (
+                          <div
+                            key={comp.id}
+                            className="p-2.5 bg-white dark:bg-slate-900 print:bg-white rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900 dark:text-white print:text-slate-900">{comp.name}</span>
+                              <span className="text-[10px] text-slate-500">{comp.competitor_type}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{comp.pricing?.pricing_summary || 'Pricing not publicly verified'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {data.competitive_gaps && data.competitive_gaps.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs">
+                      <span className="font-bold text-indigo-700 dark:text-indigo-400 print:text-indigo-700 block mb-1">
+                        Primary White-Space Opportunity:
+                      </span>
+                      <p className="text-slate-700 dark:text-slate-300 print:text-slate-700">
+                        <strong>{data.competitive_gaps[0].title}:</strong> {data.competitive_gaps[0].evidence}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Unit Economics */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">

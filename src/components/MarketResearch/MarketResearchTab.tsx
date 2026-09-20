@@ -107,39 +107,92 @@ export const MarketResearchTab: React.FC<MarketResearchTabProps> = ({ idea }) =>
         body: JSON.stringify(payload),
       });
 
-      const json = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const responseText = await res.text();
+
+      // Defensive check: if response is HTML or missing JSON content-type, reject with friendly error
+      if (!contentType.includes('application/json') || responseText.trim().startsWith('<')) {
+        console.error('Market research endpoint returned non-JSON payload:', responseText.slice(0, 300));
+        throw new Error('Market research service returned an unexpected response. Please try again.');
+      }
+
+      let json: any;
+      try {
+        json = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Market research JSON parse error:', parseError, 'Raw response:', responseText.slice(0, 300));
+        throw new Error('Market research service returned an unexpected response. Please try again.');
+      }
 
       if (!res.ok || !json.success) {
         throw new Error(
           json.error ||
+            json.details ||
             'Market research is temporarily unavailable. Your existing VentureLens analysis is still available.'
         );
       }
 
-      const receivedData: MarketResearchData = json.data.research_data;
-      const timestamp: string = json.data.researched_at || new Date().toISOString();
+      // Extract research data, accepting both json.data.research_data and json.research structures
+      let receivedData: MarketResearchData;
+      if (json.data?.research_data) {
+        receivedData = json.data.research_data;
+      } else if (json.research) {
+        receivedData = {
+          market_overview: typeof json.research.marketOverview === 'string'
+            ? {
+                summary: json.research.marketOverview,
+                market_state: 'Expanding',
+                key_developments: [],
+                recent_statistics: [],
+              }
+            : json.research.marketOverview || {
+                summary: 'Market research synthesized from industry datasets.',
+                market_state: 'Expanding',
+                key_developments: [],
+                recent_statistics: [],
+              },
+          trends: json.research.marketTrends || json.research.trends || [],
+          customer_demand: json.research.customerDemandSignals || json.research.customer_demand || [],
+          competitors: json.research.competitorLandscape || json.research.competitors || [],
+          competitive_gaps: json.research.competitiveGaps || json.research.competitive_gaps || [],
+          opportunities: json.research.marketOpportunities || json.research.opportunities || [],
+          threats: json.research.marketThreats || json.research.threats || [],
+          recent_developments: json.research.recentDevelopments || json.research.recent_developments || [],
+          sources: json.research.sources || [],
+        };
+      } else {
+        throw new Error('Market research service returned an unexpected response. Please try again.');
+      }
+
+      const timestamp: string = json.data?.researched_at || new Date().toISOString();
 
       setResearchData(receivedData);
       setResearchedAt(timestamp);
 
       // Save to global context and local storage
       const record: MarketResearchRecord = {
-        id: json.data.id || 'mr-' + Date.now(),
+        id: json.data?.id || 'mr-' + Date.now(),
         analysis_id: idea.analysis?.id || idea.id,
         user_id: user?.id || 'demo',
         research_data: receivedData,
         researched_at: timestamp,
-        created_at: json.data.created_at || timestamp,
-        updated_at: json.data.updated_at || timestamp,
+        created_at: json.data?.created_at || timestamp,
+        updated_at: json.data?.updated_at || timestamp,
       };
 
       saveMarketResearchForIdea(idea.id, record);
     } catch (err: any) {
       console.error('Market research error:', err);
-      setError(
-        err?.message ||
-          'Market research is temporarily unavailable. Your existing VentureLens analysis is still available.'
-      );
+      let message = err?.message || 'Market research is temporarily unavailable. Your existing VentureLens analysis is still available.';
+      if (
+        message.includes('Unexpected token') ||
+        message.includes('is not valid JSON') ||
+        message.includes('<!doctype') ||
+        message.includes('JSON.parse')
+      ) {
+        message = 'Market research service returned an unexpected response. Please try again.';
+      }
+      setError(message);
     } finally {
       clearInterval(stepInterval);
       setIsLoading(false);
@@ -168,15 +221,26 @@ export const MarketResearchTab: React.FC<MarketResearchTabProps> = ({ idea }) =>
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-900/10 via-indigo-900/5 to-transparent dark:from-blue-950/40 dark:via-indigo-950/20 border border-blue-200/60 dark:border-blue-800/50 p-6 sm:p-7 transition-all">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700/50">
-              <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Real-Time Google Search Grounding</span>
-            </div>
+            {researchData?.is_search_grounded === false ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700/50">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>AI Knowledge Synthesis (Search Quota Exceeded)</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-700/50">
+                <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>Real-Time Google Search Grounding</span>
+              </div>
+            )}
             <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Real-Time Market Research
+              {researchData?.is_search_grounded === false
+                ? 'Market Intelligence (AI-Synthesized Fallback)'
+                : 'Real-Time Market Research'}
             </h3>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              VentureLens queries live public web sources to identify current market trends, real competitors, observed customer demand signals, and recent sector developments relevant to <span className="font-semibold text-slate-900 dark:text-white">"{idea.title}"</span>.
+              {researchData?.is_search_grounded === false
+                ? `Synthesized market analysis based on Gemini model knowledge for "${idea.title}". Live web search grounding was unavailable due to quota constraints.`
+                : `VentureLens queries live public web sources to identify current market trends, real competitors, observed customer demand signals, and recent sector developments relevant to "${idea.title}".`}
             </p>
           </div>
 
@@ -306,6 +370,22 @@ export const MarketResearchTab: React.FC<MarketResearchTabProps> = ({ idea }) =>
       {/* Main Researched Results Content */}
       {researchData && (
         <div className="space-y-8">
+          {/* Search Quota Fallback Notice if not live search grounded */}
+          {researchData.is_search_grounded === false && (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <span className="font-bold block text-amber-950 dark:text-amber-100">
+                  Live Google Search Grounding Unavailable (Search Quota Limit Exceeded)
+                </span>
+                <p className="leading-relaxed">
+                  Due to API rate/quota limitations on Google Search grounding, this analysis was synthesized using Gemini model knowledge. 
+                  Claims, competitor pricing, and statistics are AI inferences rather than live-verified web crawls. Fabricated external URLs are strictly omitted.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Quick Navigation Filter Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
             {[
@@ -753,18 +833,22 @@ export const MarketResearchTab: React.FC<MarketResearchTabProps> = ({ idea }) =>
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>Verified Web Sources & Citations</span>
+                  <span>{researchData.is_search_grounded === false ? 'Intelligence Grounding Status' : 'Verified Web Sources & Citations'}</span>
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Grounding citations extracted directly from Google Search results
+                  {researchData.is_search_grounded === false
+                    ? 'Live Google Search was unavailable due to quota limits. Model knowledge was used without fabricated URLs.'
+                    : 'Grounding citations extracted directly from Google Search results'}
                 </p>
               </div>
               <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                {researchData.sources?.length || 0} Grounded References
+                {researchData.is_search_grounded === false
+                  ? 'AI Synthesis Mode'
+                  : `${researchData.sources?.length || 0} Grounded References`}
               </span>
             </div>
 
-            {researchData.search_queries_performed && researchData.search_queries_performed.length > 0 && (
+            {researchData.is_search_grounded !== false && researchData.search_queries_performed && researchData.search_queries_performed.length > 0 && (
               <div className="text-xs p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
                 <span className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
                   Google Search queries executed:
@@ -782,30 +866,40 @@ export const MarketResearchTab: React.FC<MarketResearchTabProps> = ({ idea }) =>
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {researchData.sources?.map((source, idx) => (
-                <a
-                  key={idx}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition-all flex items-start justify-between gap-2 group"
-                >
-                  <div className="space-y-0.5 overflow-hidden">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {source.title || source.domain}
-                    </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                      {source.domain}
-                    </p>
-                  </div>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0 mt-0.5" />
-                </a>
-              ))}
-            </div>
+            {(!researchData.sources || researchData.sources.length === 0) ? (
+              <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                {researchData.is_search_grounded === false
+                  ? 'No external web citations attached. Insights were synthesized from Gemini model knowledge (search quota exceeded). Fabricated URLs are strictly omitted.'
+                  : 'No specific web sources were returned for these queries.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {researchData.sources.map((source, idx) => (
+                  <a
+                    key={idx}
+                    href={source.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition-all flex items-start justify-between gap-2 group"
+                  >
+                    <div className="space-y-0.5 overflow-hidden">
+                      <p className="text-xs font-semibold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {source.title || source.domain}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {source.domain}
+                      </p>
+                    </div>
+                    <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-600 shrink-0 mt-0.5" />
+                  </a>
+                ))}
+              </div>
+            )}
 
             <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center pt-2">
-              All market intelligence is grounded in public web sources using Google Search grounding. Inferences and strategic positioning are clearly categorized to avoid presenting conjecture as verified facts.
+              {researchData.is_search_grounded === false
+                ? 'Search grounding unavailable due to API limits. AI-inferred metrics should be independently validated with primary sources.'
+                : 'All market intelligence is grounded in public web sources using Google Search grounding. Inferences and strategic positioning are clearly categorized to avoid presenting conjecture as verified facts.'}
             </p>
           </div>
         </div>

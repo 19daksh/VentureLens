@@ -397,4 +397,103 @@ CREATE POLICY "Users can update own financial projections" ON public.financial_p
 CREATE POLICY "Users can delete own financial projections" ON public.financial_projections
   FOR DELETE USING (auth.uid() = user_id);
 
+-- 12. COMPETITOR INTELLIGENCE TABLE (Grounded real-time competitor research data)
+CREATE TABLE IF NOT EXISTS public.competitor_intelligence (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  research_data JSONB NOT NULL,
+  researched_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT unique_analysis_competitor_intelligence UNIQUE (analysis_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_competitor_intelligence_analysis_id ON public.competitor_intelligence(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_competitor_intelligence_user_id ON public.competitor_intelligence(user_id);
+
+ALTER TABLE public.competitor_intelligence ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own competitor intelligence" ON public.competitor_intelligence
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own competitor intelligence" ON public.competitor_intelligence
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own competitor intelligence" ON public.competitor_intelligence
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own competitor intelligence" ON public.competitor_intelligence
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- 13. COMPETITOR PROFILES TABLE (Individual company profiles)
+CREATE TABLE IF NOT EXISTS public.competitor_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  website TEXT,
+  competitor_type TEXT NOT NULL DEFAULT 'Direct',
+  description TEXT,
+  target_audience TEXT,
+  business_model TEXT,
+  pricing JSONB,
+  features JSONB,
+  positioning JSONB,
+  strengths JSONB,
+  limitations JSONB,
+  recent_developments JSONB,
+  sources JSONB,
+  researched_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_analysis_id ON public.competitor_profiles(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_user_id ON public.competitor_profiles(user_id);
+
+ALTER TABLE public.competitor_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own competitor profiles" ON public.competitor_profiles
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own competitor profiles" ON public.competitor_profiles
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own competitor profiles" ON public.competitor_profiles
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own competitor profiles" ON public.competitor_profiles
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- 14. COMPETITOR TRACKING TABLE (Pinned & monitored competitors)
+CREATE TABLE IF NOT EXISTS public.competitor_tracking (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  analysis_id UUID NOT NULL REFERENCES public.analyses(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  competitor_id TEXT NOT NULL,
+  is_pinned BOOLEAN NOT NULL DEFAULT false,
+  last_researched_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_competitor_tracking_analysis_id ON public.competitor_tracking(analysis_id);
+CREATE INDEX IF NOT EXISTS idx_competitor_tracking_user_id ON public.competitor_tracking(user_id);
+
+ALTER TABLE public.competitor_tracking ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own competitor tracking" ON public.competitor_tracking
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own competitor tracking" ON public.competitor_tracking
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own competitor tracking" ON public.competitor_tracking
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own competitor tracking" ON public.competitor_tracking
+  FOR DELETE USING (auth.uid() = user_id);
+
+
 

@@ -122,6 +122,7 @@ export interface AnalysisContextData {
     early_validation_strategy?: string;
   };
   financial_projection?: any;
+  competitor_intelligence?: any;
 }
 
 /**
@@ -363,6 +364,74 @@ export function buildContextGroundingString(context: AnalysisContextData): strin
     parts.push(`=== END OF FINANCIAL PROJECTION SIMULATION ===`);
   }
 
+  // Competitor Intelligence Grounding
+  if (context.competitor_intelligence) {
+    const ci = context.competitor_intelligence;
+    parts.push(`=== REAL-TIME WEB-GROUNDED COMPETITOR INTELLIGENCE ===`);
+    if (ci.landscape_summary) {
+      parts.push(`COMPETITIVE LANDSCAPE OVERVIEW:`);
+      parts.push(ci.landscape_summary);
+    }
+
+    if (ci.competitors?.length) {
+      parts.push(`IDENTIFIED COMPETITORS (${ci.competitors.length} PROFILED):`);
+      ci.competitors.forEach((comp: any, idx: number) => {
+        parts.push(`Competitor ${idx + 1}: ${comp.name} [Type: ${comp.competitor_type || 'Direct'}]`);
+        if (comp.website) parts.push(`  Website: ${comp.website}`);
+        if (comp.core_product) parts.push(`  Core Offering: ${comp.core_product}`);
+        if (comp.target_audience) parts.push(`  Target Audience: ${comp.target_audience}`);
+        if (comp.business_model) parts.push(`  Business Model: ${comp.business_model}`);
+        if (comp.pricing?.pricing_summary) {
+          parts.push(`  Pricing Model: ${comp.pricing.pricing_summary} (${comp.pricing.confidence || 'Reported'})`);
+          if (comp.pricing.entry_tier) parts.push(`    Entry Tier: ${comp.pricing.entry_tier}`);
+          if (comp.pricing.premium_tier) parts.push(`    Premium Tier: ${comp.pricing.premium_tier}`);
+        }
+        if (comp.key_features?.length) parts.push(`  Key Capabilities: ${comp.key_features.slice(0, 4).join(', ')}`);
+        if (comp.observed_strengths?.length) parts.push(`  Strengths: ${comp.observed_strengths.join('; ')}`);
+        if (comp.observed_limitations?.length) parts.push(`  Limitations / Gaps: ${comp.observed_limitations.join('; ')}`);
+        if (comp.latest_development?.title) {
+          parts.push(`  Recent Move: ${comp.latest_development.title} (${comp.latest_development.date || 'Recent'}) - ${comp.latest_development.potential_implication || ''}`);
+        }
+      });
+    }
+
+    if (ci.feature_matrix?.length) {
+      parts.push(`FEATURE COMPARISON HIGHLIGHTS:`);
+      ci.feature_matrix.slice(0, 6).forEach((feat: any) => {
+        parts.push(`- ${feat.feature_name}: Startup [${feat.startup_status || 'Partial'}] vs Competitors`);
+      });
+    }
+
+    if (ci.competitive_gaps?.length) {
+      parts.push(`RESEARCH-BASED COMPETITIVE GAPS & OPPORTUNITIES:`);
+      ci.competitive_gaps.forEach((gap: any) => {
+        parts.push(`- [${gap.gap_type || 'Gap'}] ${gap.title}: ${gap.evidence || ''} (Target: ${gap.affected_segment || 'Market'})`);
+      });
+    }
+
+    if (ci.recent_developments?.length) {
+      parts.push(`RECENT COMPETITOR DEVELOPMENTS (PAST 12 MONTHS):`);
+      ci.recent_developments.slice(0, 5).forEach((dev: any) => {
+        parts.push(`- ${dev.competitor_name} (${dev.date || 'Recent'} - ${dev.development_type || 'Update'}): ${dev.title}. Implication: ${dev.potential_implication || 'Monitor'}`);
+      });
+    }
+
+    if (ci.ai_insights?.differentiation_opportunities?.length) {
+      parts.push(`DIFFERENTIATION OPPORTUNITIES:`);
+      ci.ai_insights.differentiation_opportunities.forEach((diff: any) => {
+        parts.push(`- ${diff.opportunity}: ${diff.rationale}`);
+      });
+    }
+
+    if (ci.ai_insights?.competitive_risks?.length) {
+      parts.push(`COMPETITIVE RETALIATION / RISKS:`);
+      ci.ai_insights.competitive_risks.forEach((risk: any) => {
+        parts.push(`- [Severity: ${risk.severity}] ${risk.risk} -> Mitigation: ${risk.mitigation}`);
+      });
+    }
+    parts.push(`=== END OF REAL-TIME COMPETITOR INTELLIGENCE ===`);
+  }
+
   parts.push(`=== END OF SAVED ANALYSIS CONTEXT ===\n`);
   return parts.join('\n');
 }
@@ -561,6 +630,21 @@ export async function fetchVerifiedAnalysis(
       // ignore if table not created or error
     }
 
+    // Optionally check if competitor_intelligence exists for this analysis
+    try {
+      const { data: ciRow } = await supabase
+        .from('competitor_intelligence')
+        .select('research_data')
+        .eq('analysis_id', analysis.id)
+        .maybeSingle();
+
+      if (ciRow?.research_data) {
+        context.competitor_intelligence = ciRow.research_data;
+      }
+    } catch {
+      // ignore if table not created or error
+    }
+
     return { context, authorized: true };
   } catch (err: any) {
     console.error('[VentureLens Chat] Database verification error:', err);
@@ -609,7 +693,7 @@ export async function streamAdvisorResponse(options: {
     parts: [{ text: message.trim() }],
   });
 
-  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.6-flash'];
+  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   let lastError: any = null;
   let fullAccumulatedText = '';
 

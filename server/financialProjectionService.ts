@@ -117,14 +117,23 @@ IMPORTANT RULES:
   "strategic_takeaway": "One high-impact conclusion for the founder regarding their capital strategy."
 }`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      temperature: 0.2,
-    },
-  });
+  let response: any = null;
+  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  for (const model of models) {
+    try {
+      response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      });
+      if (response?.text) break;
+    } catch (e) {
+      console.warn(`[Financial Insights] Model ${model} failed, trying fallback:`, e);
+    }
+  }
 
   const rawText = response.text || '{}';
   const parsed = JSON.parse(rawText);
@@ -229,14 +238,23 @@ Output ONLY valid JSON matching this exact structure:
   "rationale": "2-3 sentences explaining why these assumptions are tailored to this specific startup model."
 }`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      temperature: 0.2,
-    },
-  });
+  let response: any = null;
+  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  for (const model of models) {
+    try {
+      response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      });
+      if (response?.text) break;
+    } catch (e) {
+      console.warn(`[Suggest Assumptions] Model ${model} failed, trying fallback:`, e);
+    }
+  }
 
   const parsed = JSON.parse(response.text || '{}');
   return {

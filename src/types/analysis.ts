@@ -1,5 +1,6 @@
 import { MarketResearchRecord } from './marketResearch';
 import { FinancialProjectionRecord } from './financialProjection';
+import { CompetitorIntelligenceRecord } from './competitorIntelligence';
 
 export interface StartupIdea {
   id: string;
@@ -15,6 +16,7 @@ export interface StartupIdea {
   analysis?: FullAnalysis;
   market_research?: MarketResearchRecord;
   financial_projection?: FinancialProjectionRecord;
+  competitor_intelligence?: CompetitorIntelligenceRecord;
 }
 
 
@@ -152,6 +154,7 @@ export interface FullAnalysis {
   final_verdict: FinalVerdictData;
   market_research?: MarketResearchRecord;
   financial_projection?: FinancialProjectionRecord;
+  competitor_intelligence?: CompetitorIntelligenceRecord;
 }
 
 export interface AnalysisRequestPayload {

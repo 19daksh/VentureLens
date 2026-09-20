@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { createClient } from '@supabase/supabase-js';
-import {
+import type {
   MarketResearchData,
   MarketResearchRecord,
   ResearchSource,
@@ -95,7 +95,7 @@ SEARCH DIRECTIVES:
 2. Search real competitors, existing commercial products, startups, or apps targeting ${context.target_audience}. Look up their official websites, public pricing, and observable positioning. If pricing cannot be verified publicly, specify "Pricing not publicly verified."
 3. Search verified customer demand signals, public reviews, forum discussions (Reddit, ProductHunt, G2, user complaints), or unmet needs.
 4. Search recent industry developments from the last 12 months (funding announcements, product launches, acquisitions, regulations).
-5. Identify 5-8 current trends, 3-5 market opportunities, competitive gaps, and real market threats with supporting evidence and source references.
+5. Comprehensive Coverage: You MUST provide 5 to 8 distinct items for 'trends', 3 to 5 real commercial products for 'competitors' with their real websites (e.g. https://www.joinhandshake.com, https://www.linkedin.com, https://www.ripplematch.com), 3 to 5 items for 'customer_demand', 3 to 5 items for 'competitive_gaps', 3 to 5 items for 'opportunities', 3 to 5 items for 'threats', and 3 to 5 items for 'recent_developments'.
 
 FORMAT REQUIREMENT:
 Return a JSON object conforming strictly to this structure:
@@ -184,65 +184,159 @@ Return a JSON object conforming strictly to this structure:
   ]
 }`;
 
-  // Try gemini-3.8-flash first with googleSearch grounding, with fallbacks
-  const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
-  let lastError: any = null;
+let mrSearchGroundingCooldownUntil = 0;
+
+function isMRSearchGroundingQuotaError(err: any): boolean {
+  if (!err) return false;
+  if (err.status === 429 || err.code === 429) return true;
+  const msg = String(err.message || err);
+  return (
+    msg.includes('429') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('quota') ||
+    msg.includes('rate-limit') ||
+    msg.includes('rate limits')
+  );
+}
+
+  // 1. Try search grounding first across high-availability models if not in quota cooldown
+  const currentTimeMs = Date.now();
   let response: any = null;
+  let usedSearchGrounding = false;
+  let lastError: any = null;
 
-  for (const modelName of candidateModels) {
-    try {
-      console.log(`[VentureLens Market Research] Calling ${modelName} with Google Search grounding...`);
-      response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: {
-          systemInstruction: MARKET_RESEARCH_SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          tools: [{ googleSearch: {} }],
-        },
-      });
+  if (currentTimeMs < mrSearchGroundingCooldownUntil) {
+    console.log(
+      `[VentureLens Market Research] Search grounding is in quota cooldown (resumes at ${new Date(
+        mrSearchGroundingCooldownUntil
+      ).toISOString()}). Proceeding directly with structured synthesis mode.`
+    );
+  } else {
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    for (const modelName of candidateModels) {
+      try {
+        console.log(`[VentureLens Market Research] Calling ${modelName} with Google Search grounding...`);
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction: MARKET_RESEARCH_SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+            tools: [{ googleSearch: {} }],
+          },
+        });
 
-      if (response && response.text) {
-        break;
+        if (response && response.text) {
+          usedSearchGrounding = true;
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        if (isMRSearchGroundingQuotaError(err)) {
+          console.log(
+            `[VentureLens Market Research] Google Search grounding quota reached (429/RESOURCE_EXHAUSTED). Engaging 10-minute cooldown and proceeding immediately to structured synthesis fallback.`
+          );
+          mrSearchGroundingCooldownUntil = Date.now() + 10 * 60 * 1000;
+          break; // Stop immediately to avoid redundant 429 calls
+        } else {
+          console.log(`[VentureLens Market Research] Model ${modelName} search attempt note: ${err?.status || err?.code || 'attempt completed'}`);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        }
       }
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`[VentureLens Market Research] Model ${modelName} call warning:`, err?.message || err);
-      // Wait briefly before fallback model
-      await new Promise((resolve) => setTimeout(resolve, 800));
+    }
+  }
+
+  // 2. If search grounding was unavailable (e.g. quota limit, rate limit), seamlessly fall back to structured research synthesis
+  if (!response || !response.text) {
+    console.log('[VentureLens Market Research] Proceeding with structured market intelligence synthesis fallback...');
+    const fallbackModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+    for (const modelName of fallbackModels) {
+      try {
+        console.log(`[VentureLens Market Research] Calling ${modelName} in structured JSON mode...`);
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: prompt,
+          config: {
+            systemInstruction:
+              MARKET_RESEARCH_SYSTEM_INSTRUCTION +
+              '\nIMPORTANT: Return strictly valid JSON adhering exactly to the requested schema. Use authentic market datasets, verified public company websites, documented pricing tiers, and realistic competitor intelligence.',
+            temperature: 0.2,
+            maxOutputTokens: 8192,
+            responseMimeType: 'application/json',
+          },
+        });
+
+        if (response && response.text) {
+          console.log(`[VentureLens Market Research] Structured synthesis succeeded with ${modelName}`);
+          break;
+        }
+      } catch (fallbackErr: any) {
+        lastError = fallbackErr;
+        console.log(`[VentureLens Market Research] Model ${modelName} fallback status: ${fallbackErr?.status || fallbackErr?.code || 'retrying next'}`);
+      }
     }
   }
 
   if (!response || !response.text) {
-    const errorDetail = lastError?.message || 'Gemini Search grounding service is unavailable.';
+    const errorDetail = lastError?.message || 'Gemini market research service is temporarily unavailable.';
     throw new Error(`Market research could not be completed: ${errorDetail}`);
   }
 
-  // Extract grounding metadata from Gemini response
+  // Extract grounding metadata from Gemini response if search grounding was active
   const candidate = response.candidates?.[0];
   const groundingMetadata = candidate?.groundingMetadata;
-  const searchQueries: string[] = groundingMetadata?.webSearchQueries || [];
+  const searchQueries: string[] = groundingMetadata?.webSearchQueries || (usedSearchGrounding ? [] : [
+    `Market conditions and trends: ${context.industry}`,
+    `Competitors and demand: ${context.title}`,
+    `Target audience needs: ${context.target_audience}`
+  ]);
   const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
     groundingMetadata?.groundingChunks || [];
 
-  // Parse response JSON
-  let rawText = response.text.trim();
-  if (rawText.startsWith('```')) {
-    rawText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```$/i, '').trim();
-  }
-
+  // Parse response JSON with robust recovery
   let parsed: any;
+  const rawCleaned = response.text.trim();
   try {
-    parsed = JSON.parse(rawText);
-  } catch (parseErr) {
-    console.error('[VentureLens Market Research] Malformed JSON from Gemini. Raw text snippet:', rawText.slice(0, 300));
+    const unquoted = rawCleaned.startsWith('```')
+      ? rawCleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+      : rawCleaned;
+    parsed = JSON.parse(unquoted);
+  } catch {
     // Attempt relaxed regex extraction
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
+    const firstBrace = rawCleaned.indexOf('{');
+    const lastBrace = rawCleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       try {
-        parsed = JSON.parse(jsonMatch[0]);
+        parsed = JSON.parse(rawCleaned.slice(firstBrace, lastBrace + 1));
       } catch {
-        throw new Error('Received non-standard response from research model. Please try again.');
+        // Attempt unclosed structure recovery
+        let candidateStr = rawCleaned.slice(firstBrace);
+        candidateStr = candidateStr.replace(/,\s*$/, '');
+        let openBraces = 0;
+        let openBrackets = 0;
+        let inString = false;
+        let escapeNext = false;
+        for (let i = 0; i < candidateStr.length; i++) {
+          const c = candidateStr[i];
+          if (escapeNext) { escapeNext = false; continue; }
+          if (c === '\\') { escapeNext = true; continue; }
+          if (c === '"') { inString = !inString; continue; }
+          if (!inString) {
+            if (c === '{') openBraces++;
+            else if (c === '}') openBraces--;
+            else if (c === '[') openBrackets++;
+            else if (c === ']') openBrackets--;
+          }
+        }
+        if (inString) candidateStr += '"';
+        while (openBrackets > 0) { candidateStr += ']'; openBrackets--; }
+        while (openBraces > 0) { candidateStr += '}'; openBraces--; }
+        try {
+          parsed = JSON.parse(candidateStr);
+        } catch {
+          throw new Error('Received non-standard response from research model. Please try again.');
+        }
       }
     } else {
       throw new Error('Received unparseable research output. Please try again.');
@@ -269,8 +363,8 @@ Return a JSON object conforming strictly to this structure:
     }
   }
 
-  // 2. Add sources parsed in the JSON
-  if (Array.isArray(parsed.sources)) {
+  // 2. Add sources parsed in the JSON ONLY if live search was used
+  if (usedSearchGrounding && Array.isArray(parsed.sources)) {
     for (const s of parsed.sources) {
       if (s?.url && typeof s.url === 'string' && s.url.startsWith('http')) {
         try {
@@ -290,12 +384,35 @@ Return a JSON object conforming strictly to this structure:
     }
   }
 
+  // 3. Add verified competitor websites to sources if not already present
+  if (Array.isArray(parsed.competitors)) {
+    for (const comp of parsed.competitors) {
+      if (comp?.website && typeof comp.website === 'string' && comp.website.startsWith('http')) {
+        try {
+          const parsedUrl = new URL(comp.website);
+          const rootUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}`;
+          comp.website = rootUrl;
+          const domain = parsedUrl.hostname.replace(/^www\./, '');
+          if (usedSearchGrounding && !sourcesMap.has(rootUrl)) {
+            sourcesMap.set(rootUrl, {
+              title: `${comp.name || domain} Official Platform`,
+              url: rootUrl,
+              domain,
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
   const consolidatedSources: ResearchSource[] = Array.from(sourcesMap.values());
 
   // Ensure robust fallback defaults for required sections
   const sanitizedData: MarketResearchData = {
     market_overview: {
-      summary: parsed.market_overview?.summary || 'Market research completed using public web intelligence.',
+      summary: parsed.market_overview?.summary || (usedSearchGrounding ? 'Market research completed using public web intelligence.' : 'Market overview synthesized from model knowledge (live search unavailable).'),
       market_state: parsed.market_overview?.market_state || 'Expanding',
       key_developments: Array.isArray(parsed.market_overview?.key_developments)
         ? parsed.market_overview.key_developments
@@ -309,8 +426,8 @@ Return a JSON object conforming strictly to this structure:
           title: t.title || 'Market Trend',
           description: t.description || '',
           why_it_matters: t.why_it_matters || 'Relevant to customer adoption and product positioning.',
-          source: t.source || 'Industry Analysis',
-          source_url: t.source_url || (consolidatedSources[0]?.url || ''),
+          source: usedSearchGrounding ? (t.source || 'Industry Analysis') : 'AI Knowledge Synthesis',
+          source_url: usedSearchGrounding ? (t.source_url || (consolidatedSources[0]?.url || '')) : '',
           published_date: t.published_date,
         }))
       : [],
@@ -319,8 +436,8 @@ Return a JSON object conforming strictly to this structure:
           signal: c.signal || 'Demand Indicator',
           evidence: c.evidence || 'Observed in industry adoption patterns.',
           interpretation: c.interpretation || 'Inferred from market dynamics.',
-          source: c.source || 'Public Web Sources',
-          source_url: c.source_url || (consolidatedSources[0]?.url || ''),
+          source: usedSearchGrounding ? (c.source || 'Public Web Sources') : 'AI Inferred Demand Pattern',
+          source_url: usedSearchGrounding ? (c.source_url || (consolidatedSources[0]?.url || '')) : '',
         }))
       : [],
     competitors: Array.isArray(parsed.competitors)
@@ -334,7 +451,7 @@ Return a JSON object conforming strictly to this structure:
           positioning: comp.positioning || '',
           strengths: Array.isArray(comp.strengths) ? comp.strengths : [],
           observed_gaps: Array.isArray(comp.observed_gaps) ? comp.observed_gaps : [],
-          sources: Array.isArray(comp.sources) ? comp.sources : [],
+          sources: usedSearchGrounding && Array.isArray(comp.sources) ? comp.sources : [],
         }))
       : [],
     competitive_gaps: Array.isArray(parsed.competitive_gaps)
@@ -351,7 +468,7 @@ Return a JSON object conforming strictly to this structure:
           description: o.description || '',
           evidence: o.evidence || 'Supported by recent sector growth signals.',
           relevance: o.relevance || 'Directly applicable to early product design.',
-          sources: Array.isArray(o.sources) ? o.sources : [],
+          sources: usedSearchGrounding && Array.isArray(o.sources) ? o.sources : [],
         }))
       : [],
     threats: Array.isArray(parsed.threats)
@@ -360,20 +477,25 @@ Return a JSON object conforming strictly to this structure:
           description: th.description || '',
           evidence: th.evidence || 'Market competition and incumbent moats.',
           threat_type: th.threat_type || 'Competitive Pressure',
-          sources: Array.isArray(th.sources) ? th.sources : [],
+          sources: usedSearchGrounding && Array.isArray(th.sources) ? th.sources : [],
         }))
       : [],
     recent_developments: Array.isArray(parsed.recent_developments)
       ? parsed.recent_developments.map((d: any) => ({
           title: d.title || 'Industry Event',
           description: d.description || '',
-          date: d.date || 'Last 12 months',
-          source: d.source || 'Public Press',
-          source_url: d.source_url || (consolidatedSources[0]?.url || ''),
+          date: d.date || 'Recent Period',
+          source: usedSearchGrounding ? (d.source || 'Public Press') : 'AI Synthesized Event',
+          source_url: usedSearchGrounding ? (d.source_url || (consolidatedSources[0]?.url || '')) : '',
         }))
       : [],
     sources: consolidatedSources,
-    search_queries_performed: searchQueries,
+    search_queries_performed: usedSearchGrounding ? searchQueries : [],
+    is_search_grounded: usedSearchGrounding,
+    grounding_status: usedSearchGrounding ? 'live_search' : 'fallback_synthesis',
+    grounding_message: usedSearchGrounding
+      ? 'Grounded with live Google Search queries and retrieved public web sources.'
+      : 'Live Google Search grounding was unavailable due to API rate/quota limits. Research was synthesized via Gemini model knowledge without live web citations.',
   };
 
   return sanitizedData;

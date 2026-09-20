@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { StartupIdea, FullAnalysis, AnalysisRequestPayload } from '../types/analysis';
 import { MarketResearchRecord } from '../types/marketResearch';
 import { FinancialProjectionRecord } from '../types/financialProjection';
+import { CompetitorIntelligenceRecord } from '../types/competitorIntelligence';
 import { useAuth, isUuid } from './AuthContext';
 import { supabase, isSupabaseConfigured, localDb } from '../lib/supabase';
 
@@ -20,6 +21,7 @@ interface AnalysisContextType {
   clearCompare: () => void;
   saveMarketResearchForIdea: (ideaId: string, record: MarketResearchRecord) => void;
   saveFinancialProjectionForIdea: (ideaId: string, record: FinancialProjectionRecord) => void;
+  saveCompetitorIntelligenceForIdea: (ideaId: string, record: CompetitorIntelligenceRecord) => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextType | undefined>(undefined);
@@ -96,6 +98,11 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               fullAnalysis.financial_projection = savedFp;
             }
 
+            const savedCi = fullAnalysis ? localDb.getCompetitorIntelligenceByAnalysisId(fullAnalysis.id) : null;
+            if (savedCi && fullAnalysis) {
+              fullAnalysis.competitor_intelligence = savedCi;
+            }
+
             return {
               id: item.id,
               user_id: item.user_id,
@@ -110,6 +117,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               analysis: fullAnalysis,
               market_research: savedMr || undefined,
               financial_projection: savedFp || undefined,
+              competitor_intelligence: savedCi || undefined,
             };
           });
 
@@ -131,11 +139,16 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         if (savedFp && analysis) {
           analysis.financial_projection = savedFp;
         }
+        const savedCi = analysis ? localDb.getCompetitorIntelligenceByAnalysisId(analysis.id) : null;
+        if (savedCi && analysis) {
+          analysis.competitor_intelligence = savedCi;
+        }
         return {
           ...item,
           analysis: analysis || undefined,
           market_research: savedMr || undefined,
           financial_projection: savedFp || undefined,
+          competitor_intelligence: savedCi || undefined,
         };
       });
       setIdeas(enriched);
@@ -549,6 +562,25 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   };
 
+  const saveCompetitorIntelligenceForIdea = (ideaId: string, record: CompetitorIntelligenceRecord) => {
+    localDb.saveCompetitorIntelligence(record);
+    setIdeas(prev =>
+      prev.map(item => {
+        if (item.id === ideaId) {
+          const updatedAnalysis = item.analysis
+            ? { ...item.analysis, competitor_intelligence: record }
+            : undefined;
+          return {
+            ...item,
+            competitor_intelligence: record,
+            analysis: updatedAnalysis,
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   return (
     <AnalysisContext.Provider
       value={{
@@ -566,6 +598,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         clearCompare,
         saveMarketResearchForIdea,
         saveFinancialProjectionForIdea,
+        saveCompetitorIntelligenceForIdea,
       }}
     >
       {children}

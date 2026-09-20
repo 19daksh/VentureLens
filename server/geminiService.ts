@@ -234,7 +234,7 @@ Evaluate early-stage concepts realistically. Look out for critical flaws, compet
 Offer pragmatic, prioritized advice that empowers founders to test assumptions before spending capital.`;
 
   // Call Gemini model with automatic retry & fallback across fast, highly-available models
-  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.6-flash'];
+  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
   let lastError: any = null;
   let response: any = null;
 

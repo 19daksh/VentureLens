@@ -5,6 +5,7 @@ import { ScoreBadge } from '../components/ScoreBadge';
 import { RadarScoreChart } from '../components/RadarScoreChart';
 import { MarketResearchTab } from '../components/MarketResearch/MarketResearchTab';
 import { FinancialProjectionTab } from '../components/Financials/FinancialProjectionTab';
+import { CompetitorIntelligenceTab } from '../components/CompetitorIntelligence/CompetitorIntelligenceTab';
 import {
   Compass,
   ArrowLeft,
@@ -29,6 +30,7 @@ import {
   Printer,
   ExternalLink,
   Globe,
+  Search,
 } from 'lucide-react';
 
 export const AnalysisDetailPage: React.FC = () => {
@@ -37,7 +39,7 @@ export const AnalysisDetailPage: React.FC = () => {
   const { getIdeaById, deleteIdea, toggleCompareId, selectedCompareIds, loading } = useAnalysis();
 
   const [activeTab, setActiveTab] = useState<
-    'problem' | 'market' | 'market-research' | 'competitors' | 'business' | 'financials' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
+    'problem' | 'market' | 'market-research' | 'competitors' | 'competitor-intelligence' | 'business' | 'financials' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
   >('problem');
 
   const idea = id ? getIdeaById(id) : null;
@@ -268,6 +270,7 @@ export const AnalysisDetailPage: React.FC = () => {
                 { id: 'market', label: '2. Market Sizing (TAM)', icon: TrendingUp },
                 { id: 'market-research', label: '🌐 Real-Time Market Research', icon: Globe, highlight: true },
                 { id: 'competitors', label: '3. Competitors & Moat', icon: Users },
+                { id: 'competitor-intelligence', label: '🕵️ Competitor Intelligence', icon: Search, highlight: true },
                 { id: 'business', label: '4. Business Model & Pricing', icon: DollarSign },
                 { id: 'financials', label: '💰 Financial Simulator', icon: Calculator, highlight: true },
                 { id: 'tech', label: '5. Tech Architecture', icon: Cpu },
@@ -526,6 +529,33 @@ export const AnalysisDetailPage: React.FC = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Callout to Live Competitor Intelligence */}
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent border border-indigo-200 dark:border-indigo-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <span>🕵️</span>
+                        <span>Looking for live pricing tiers, feature matrices & 2D positioning?</span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Access real-world competitor tracking powered by live web grounding and strategic gap analysis.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('competitor-intelligence')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all shrink-0"
+                    >
+                      <span>Open Competitor Intelligence</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: Grounded Competitor Intelligence */}
+              {activeTab === 'competitor-intelligence' && (
+                <div className="animate-in fade-in">
+                  <CompetitorIntelligenceTab idea={idea} />
                 </div>
               )}
 

@@ -84,6 +84,9 @@ export interface MarketResearchData {
   recent_developments: RecentDevelopment[];
   sources: ResearchSource[];
   search_queries_performed?: string[];
+  is_search_grounded?: boolean;
+  grounding_status?: 'live_search' | 'fallback_synthesis';
+  grounding_message?: string;
 }
 
 export interface MarketResearchRecord {
