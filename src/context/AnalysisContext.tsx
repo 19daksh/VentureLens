@@ -17,6 +17,7 @@ interface AnalysisContextType {
   createIdeaAndAnalyze: (payload: Omit<AnalysisRequestPayload, 'userId'>) => Promise<{ ideaId?: string; error?: string }>;
   deleteIdea: (ideaId: string) => Promise<boolean>;
   getIdeaById: (id: string) => StartupIdea | null;
+  fetchIdeaOrAnalysisById: (id: string) => Promise<StartupIdea | null>;
   toggleCompareId: (id: string) => void;
   clearCompare: () => void;
   saveMarketResearchForIdea: (ideaId: string, record: MarketResearchRecord) => void;
@@ -507,6 +508,139 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return ideas.find(i => i.id === id) || (user ? localDb.getIdeaById(id, user.id) : null);
   };
 
+  const fetchIdeaOrAnalysisById = async (id: string): Promise<StartupIdea | null> => {
+    if (!id || typeof id !== 'string') return null;
+    const cleanId = id.trim();
+
+    // 1. Check in-memory ideas (by idea.id or by idea.analysis.id)
+    const inMem = ideas.find(i => i.id === cleanId || i.analysis?.id === cleanId);
+    if (inMem) return inMem;
+
+    // 2. Check localDb ideas
+    const allLocalIdeas = localDb.getAllIdeas();
+    const localIdea = allLocalIdeas.find(i => i.id === cleanId || i.analysis?.id === cleanId);
+    if (localIdea) {
+      if (!localIdea.analysis) {
+        const ana = localDb.getAnalysisByIdeaId(localIdea.id, user?.id || '');
+        if (ana) localIdea.analysis = ana;
+      }
+      return localIdea;
+    }
+
+    // 3. Check localDb analyses
+    const allLocalAnalyses = localDb.getAllAnalyses();
+    const localAnalysis = allLocalAnalyses.find(a => a.id === cleanId || a.idea_id === cleanId);
+    if (localAnalysis) {
+      const associatedIdea = allLocalIdeas.find(i => i.id === localAnalysis.idea_id);
+      if (associatedIdea) {
+        return { ...associatedIdea, analysis: localAnalysis };
+      }
+      return {
+        id: localAnalysis.idea_id || `idea-${localAnalysis.id}`,
+        user_id: localAnalysis.user_id || user?.id || '',
+        title: localAnalysis.executive_summary?.slice(0, 45) || 'Analyzed Startup Concept',
+        description: localAnalysis.executive_summary || '',
+        industry: 'Technology',
+        target_audience: 'B2B / B2C',
+        status: 'completed',
+        created_at: localAnalysis.created_at,
+        updated_at: localAnalysis.updated_at,
+        analysis: localAnalysis,
+      };
+    }
+
+    // 4. Check Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: anaData } = await supabase
+          .from('analyses')
+          .select('*, startup_ideas(*)')
+          .or(`id.eq.${cleanId},idea_id.eq.${cleanId}`)
+          .maybeSingle();
+
+        if (anaData) {
+          const rawAnalysis: FullAnalysis = {
+            id: anaData.id,
+            idea_id: anaData.idea_id,
+            user_id: anaData.user_id,
+            overall_score: anaData.overall_score,
+            verdict: anaData.verdict,
+            verdict_type: anaData.verdict_type,
+            confidence_indicator: anaData.confidence_indicator,
+            executive_summary: anaData.executive_summary,
+            problem_score: anaData.problem_score,
+            market_score: anaData.market_score,
+            competition_score: anaData.competition_score,
+            revenue_score: anaData.revenue_score,
+            technical_score: anaData.technical_score,
+            created_at: anaData.created_at,
+            updated_at: anaData.updated_at,
+            ...(anaData.raw_gemini_response || {}),
+          };
+
+          const rawIdea = anaData.startup_ideas;
+          return {
+            id: rawIdea?.id || anaData.idea_id,
+            user_id: rawIdea?.user_id || anaData.user_id,
+            title: rawIdea?.title || 'Analyzed Startup Concept',
+            description: rawIdea?.description || rawAnalysis.executive_summary,
+            industry: rawIdea?.industry || 'Technology',
+            target_audience: rawIdea?.target_audience || 'General Market',
+            status: 'completed',
+            created_at: rawIdea?.created_at || anaData.created_at,
+            updated_at: rawIdea?.updated_at || anaData.updated_at,
+            analysis: rawAnalysis,
+          };
+        }
+
+        const { data: ideaData } = await supabase
+          .from('startup_ideas')
+          .select('*, analyses(*)')
+          .eq('id', cleanId)
+          .maybeSingle();
+
+        if (ideaData) {
+          const rawAnalysis = ideaData.analyses && ideaData.analyses.length > 0 ? ideaData.analyses[0] : null;
+          return {
+            id: ideaData.id,
+            user_id: ideaData.user_id,
+            title: ideaData.title,
+            description: ideaData.description,
+            industry: ideaData.industry,
+            target_audience: ideaData.target_audience,
+            status: ideaData.status,
+            created_at: ideaData.created_at,
+            updated_at: ideaData.updated_at,
+            analysis: rawAnalysis
+              ? {
+                  id: rawAnalysis.id,
+                  idea_id: rawAnalysis.idea_id,
+                  user_id: rawAnalysis.user_id,
+                  overall_score: rawAnalysis.overall_score,
+                  verdict: rawAnalysis.verdict,
+                  verdict_type: rawAnalysis.verdict_type,
+                  confidence_indicator: rawAnalysis.confidence_indicator,
+                  executive_summary: rawAnalysis.executive_summary,
+                  problem_score: rawAnalysis.problem_score,
+                  market_score: rawAnalysis.market_score,
+                  competition_score: rawAnalysis.competition_score,
+                  revenue_score: rawAnalysis.revenue_score,
+                  technical_score: rawAnalysis.technical_score,
+                  created_at: rawAnalysis.created_at,
+                  updated_at: rawAnalysis.updated_at,
+                  ...(rawAnalysis.raw_gemini_response || {}),
+                }
+              : undefined,
+          };
+        }
+      } catch (err) {
+        console.warn('Supabase fetch error for id:', cleanId, err);
+      }
+    }
+
+    return null;
+  };
+
   const toggleCompareId = (id: string) => {
     setSelectedCompareIds(prev => {
       if (prev.includes(id)) {
@@ -594,6 +728,7 @@ export const AnalysisProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         createIdeaAndAnalyze,
         deleteIdea,
         getIdeaById,
+        fetchIdeaOrAnalysisById,
         toggleCompareId,
         clearCompare,
         saveMarketResearchForIdea,

@@ -16,10 +16,14 @@ import {
   Info,
   ChevronDown,
   Layers,
+  Mic,
+  MessageSquare,
 } from 'lucide-react';
 import { useAnalysis } from '../../context/AnalysisContext';
 import { useAuth } from '../../context/AuthContext';
 import { ChatMessage } from '../../types/chat';
+import { VoiceAdvisorView } from './VoiceAdvisorView';
+import { Z_INDEX } from '../../constants/zIndex';
 
 export const VentureLensAdvisor: React.FC = () => {
   const location = useLocation();
@@ -28,6 +32,7 @@ export const VentureLensAdvisor: React.FC = () => {
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
+  const [advisorMode, setAdvisorMode] = useState<'chat' | 'voice'>('chat');
   const [inputMessage, setInputMessage] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -88,12 +93,21 @@ export const VentureLensAdvisor: React.FC = () => {
     }
   }, [messages, isOpen, isLoading]);
 
-  // Focus textarea when panel opens
+  // Support global custom events to open the advisor (e.g. from navbar or analysis buttons)
   useEffect(() => {
-    if (isOpen && textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, [isOpen]);
+    const handleOpenAdvisor = (e: Event) => {
+      const customEvent = e as CustomEvent<{ mode?: 'chat' | 'voice' }>;
+      setIsOpen(true);
+      if (customEvent.detail?.mode) {
+        setAdvisorMode(customEvent.detail.mode);
+      }
+    };
+
+    window.addEventListener('open-advisor' as any, handleOpenAdvisor);
+    return () => {
+      window.removeEventListener('open-advisor' as any, handleOpenAdvisor);
+    };
+  }, []);
 
   const handleClearConversation = () => {
     if (abortControllerRef.current) {
@@ -376,12 +390,12 @@ export const VentureLensAdvisor: React.FC = () => {
   return (
     <>
       {/* Floating Chat Trigger Button */}
-      <div className="fixed bottom-6 right-6 z-50 print:hidden flex flex-col items-end">
+      <div className={`fixed bottom-6 right-6 ${Z_INDEX.ADVISOR_FAB} print:hidden flex flex-col items-end`}>
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
             aria-label="Open VentureLens AI Advisor"
-            className="group relative flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-500 hover:to-violet-600 text-white font-semibold text-sm rounded-full shadow-xl hover:shadow-2xl hover:shadow-indigo-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-4 focus:ring-indigo-500/30"
+            className="group relative flex items-center gap-2.5 px-4 py-3 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 hover:from-indigo-500 hover:to-violet-600 text-white font-semibold text-sm rounded-full shadow-xl hover:shadow-2xl hover:shadow-indigo-500/25 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-4 focus:ring-indigo-500/30 cursor-pointer"
           >
             <div className="relative">
               <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
@@ -402,40 +416,77 @@ export const VentureLensAdvisor: React.FC = () => {
         <div
           role="dialog"
           aria-labelledby="advisor-title"
-          className={`fixed z-50 print:hidden transition-all duration-200 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden ${
+          className={`fixed ${Z_INDEX.ADVISOR_PANEL} print:hidden transition-all duration-200 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden ${
             isExpanded
-              ? 'inset-3 sm:inset-6 rounded-2xl'
-              : 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[440px] sm:h-[630px] sm:max-h-[88vh] sm:rounded-2xl'
+              ? 'top-16 inset-x-2 bottom-2 sm:top-20 sm:bottom-6 sm:left-6 sm:right-6 sm:w-auto sm:max-h-[calc(100dvh-6.5rem)] rounded-2xl'
+              : 'top-16 inset-x-0 bottom-0 sm:inset-auto sm:top-20 sm:bottom-auto sm:right-6 sm:w-[440px] sm:h-[calc(100dvh-6rem)] sm:max-h-[660px] sm:rounded-2xl'
           }`}
         >
           {/* Header */}
-          <div className="px-4 py-3 bg-slate-900 dark:bg-slate-950 text-white border-b border-slate-800 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="px-3.5 py-2.5 sm:px-4 sm:py-2.5 bg-slate-900 dark:bg-slate-950 text-white border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 pr-1">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shrink-0 shadow-sm shadow-indigo-500/30">
-                <Bot className="w-4 h-4" />
+                {advisorMode === 'voice' ? <Mic className="w-4 h-4 text-emerald-300" /> : <Bot className="w-4 h-4" />}
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h3 id="advisor-title" className="text-sm font-bold tracking-tight truncate">
+                  <h3 id="advisor-title" className="text-xs sm:text-sm font-bold tracking-tight text-white truncate">
                     VentureLens AI Advisor
                   </h3>
-                  <span className="px-1.5 py-0.2 text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded">
-                    PRO
+                  <span className={`px-1.5 py-0.2 text-[9px] font-bold rounded border shrink-0 ${
+                    advisorMode === 'voice'
+                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                      : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                  }`}>
+                    {advisorMode === 'voice' ? 'VOICE LIVE' : 'PRO'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 truncate">Your startup strategy assistant</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">
+                  {advisorMode === 'voice' ? 'Spoken venture partner (Gemini 3.8 Live)' : 'Your startup strategy assistant'}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0 ml-2">
-              <button
-                onClick={handleClearConversation}
-                title="Clear conversation"
-                aria-label="Clear conversation"
-                className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              {/* Mode Toggle: [ Chat ] [ Voice ] */}
+              <div className="flex bg-slate-800 p-0.5 rounded-lg border border-slate-700/80">
+                <button
+                  id="advisor-mode-chat-tab"
+                  onClick={() => setAdvisorMode('chat')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    advisorMode === 'chat'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">Chat</span>
+                </button>
+                <button
+                  id="advisor-mode-voice-tab"
+                  onClick={() => setAdvisorMode('voice')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    advisorMode === 'voice'
+                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-950/40'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Mic className="w-3.5 h-3.5 text-emerald-300" />
+                  <span className="hidden xs:inline">Voice</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                </button>
+              </div>
+
+              {advisorMode === 'chat' && (
+                <button
+                  onClick={handleClearConversation}
+                  title="Clear conversation"
+                  aria-label="Clear conversation"
+                  className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 title={isExpanded ? 'Restore size' : 'Expand panel'}
@@ -446,8 +497,8 @@ export const VentureLensAdvisor: React.FC = () => {
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                title="Close chat"
-                aria-label="Close chat"
+                title="Close advisor"
+                aria-label="Close advisor"
                 className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -455,7 +506,47 @@ export const VentureLensAdvisor: React.FC = () => {
             </div>
           </div>
 
-          {/* Active Context Banner */}
+          {/* Body: Voice View or Chat View */}
+          {advisorMode === 'voice' ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <VoiceAdvisorView
+                analysisId={activeIdeaId || (activeIdea ? activeIdea.id : null)}
+                userToken={session?.access_token || 'demo-token'}
+                isDemo={!session?.access_token || user?.id === '00000000-0000-4000-8000-000000000001'}
+                clientContext={
+                  activeIdea
+                    ? {
+                        isDemo: !session?.access_token || user?.id === '00000000-0000-4000-8000-000000000001',
+                        title: activeIdea.title,
+                        description: activeIdea.description,
+                        industry: activeIdea.industry,
+                        target_audience: activeIdea.target_audience,
+                        overall_score: activeIdea.analysis?.overall_score,
+                        verdict_type: activeIdea.analysis?.verdict_type,
+                        tam: activeIdea.analysis?.market_analysis?.tam,
+                        sam: activeIdea.analysis?.market_analysis?.sam,
+                        som: activeIdea.analysis?.market_analysis?.som,
+                        problem_score: activeIdea.analysis?.problem_score,
+                        market_score: activeIdea.analysis?.market_score,
+                        competition_score: activeIdea.analysis?.competition_score,
+                        revenue_score: activeIdea.analysis?.revenue_score,
+                        technical_score: activeIdea.analysis?.technical_score,
+                        recommended_business_model: activeIdea.analysis?.business_model?.recommended_business_model,
+                        pricing_strategy: activeIdea.analysis?.business_model?.pricing_strategy,
+                        competitors: activeIdea.analysis?.competitor_analysis?.competitors,
+                        risks: activeIdea.analysis?.risks,
+                        recommendations: activeIdea.analysis?.recommendations,
+                        market_research: activeIdea.market_research,
+                      }
+                    : null
+                }
+                onSwitchToChat={() => setAdvisorMode('chat')}
+                onClose={() => setIsOpen(false)}
+              />
+            </div>
+          ) : (
+            <>
+              {/* Active Context Banner */}
           <div className="px-3.5 py-2 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <span className="flex h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
@@ -654,8 +745,10 @@ export const VentureLensAdvisor: React.FC = () => {
               <span>{inputMessage.length}/2500</span>
             </div>
           </div>
-        </div>
+        </>
       )}
-    </>
-  );
+    </div>
+  )}
+</>
+);
 };

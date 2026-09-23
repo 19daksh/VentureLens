@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { BackButton } from '../components/BackButton';
 import { ArrowRight, CheckCircle2, ShieldCheck, Zap, Cpu, Database } from 'lucide-react';
 
 export const HowItWorksPage: React.FC = () => {
@@ -49,6 +50,9 @@ export const HowItWorksPage: React.FC = () => {
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-16 transition-colors">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-8">
+          <BackButton to="/" label="Back to Home" />
+        </div>
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-950/80 px-3 py-1 rounded-full">
             Under The Hood

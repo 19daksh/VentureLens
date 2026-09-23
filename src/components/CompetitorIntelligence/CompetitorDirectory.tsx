@@ -4,6 +4,7 @@ import {
   CompetitorType,
   InformationQualityStatus,
 } from '../../types/competitorIntelligence';
+import { Z_INDEX } from '../../constants/zIndex';
 import {
   Users,
   Search,
@@ -35,16 +36,38 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedCompetitor, setSelectedCompetitor] = useState<CompetitorProfile | null>(null);
 
+  const counts = useMemo(() => {
+    const res = { all: competitors.length, Direct: 0, Indirect: 0, Substitute: 0, Emerging: 0 };
+    (competitors || []).forEach((c) => {
+      const raw = (c.competitor_type || (c as any).type || 'Direct').toLowerCase();
+      if (raw === 'direct') res.Direct++;
+      else if (raw === 'indirect') res.Indirect++;
+      else if (raw === 'substitute') res.Substitute++;
+      else if (raw === 'emerging') res.Emerging++;
+      else res.Direct++;
+    });
+    return res;
+  }, [competitors]);
+
   const filtered = useMemo(() => {
-    return competitors.filter((c) => {
-      const matchType = selectedType === 'all' || c.competitor_type === selectedType;
-      const matchSearch =
-        !searchQuery ||
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.target_audience.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (c.core_product && c.core_product.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (c.key_features && c.key_features.some((f) => f.toLowerCase().includes(searchQuery.toLowerCase())));
-      return matchType && matchSearch;
+    return (competitors || []).filter((c) => {
+      const cType = (c.competitor_type || (c as any).type || 'Direct').toLowerCase();
+      const matchType = selectedType === 'all' || cType === selectedType.toLowerCase();
+
+      const q = searchQuery.toLowerCase().trim();
+      if (!q) return matchType;
+
+      const nameMatch = c.name && c.name.toLowerCase().includes(q);
+      const targetMatch = c.target_audience && c.target_audience.toLowerCase().includes(q);
+      const prodMatch = (c.core_product && c.core_product.toLowerCase().includes(q)) ||
+        ((c as any).product && (c as any).product.toLowerCase().includes(q));
+      const posMatch = c.positioning && c.positioning.toLowerCase().includes(q);
+      const featMatch = (c.key_features && c.key_features.some((f) => f && f.toLowerCase().includes(q))) ||
+        ((c as any).features && (c as any).features.some((f: any) => f && f.toLowerCase().includes(q)));
+      const strMatch = (c.observed_strengths && c.observed_strengths.some((s) => s && s.toLowerCase().includes(q))) ||
+        ((c as any).strengths && (c as any).strengths.some((s: any) => s && s.toLowerCase().includes(q)));
+
+      return matchType && (nameMatch || targetMatch || prodMatch || posMatch || featMatch || strMatch);
     });
   }, [competitors, selectedType, searchQuery]);
 
@@ -75,30 +98,37 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
     }
   };
 
-  const getTypeBadge = (type: CompetitorType) => {
-    switch (type) {
-      case 'Direct':
+  const getTypeBadge = (type?: CompetitorType | string) => {
+    const norm = (type || 'Direct').toLowerCase();
+    switch (norm) {
+      case 'direct':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
             Direct Competitor
           </span>
         );
-      case 'Indirect':
+      case 'indirect':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             Indirect Solution
           </span>
         );
-      case 'Substitute':
+      case 'substitute':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             Substitute / Habit
           </span>
         );
-      case 'Emerging':
+      case 'emerging':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
             Emerging Startup
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+            {type || 'Market Alternative'}
           </span>
         );
     }
@@ -109,19 +139,20 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
       {/* Controls Bar: Type Filters & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-1.5 flex-wrap">
-          {['all', 'Direct', 'Indirect', 'Substitute', 'Emerging'].map((typeKey) => {
+          {(['all', 'Direct', 'Indirect', 'Substitute', 'Emerging'] as const).map((typeKey) => {
             const isSelected = selectedType === typeKey;
+            const countVal = typeKey === 'all' ? counts.all : counts[typeKey];
             return (
               <button
                 key={typeKey}
                 onClick={() => setSelectedType(typeKey)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isSelected
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
               >
-                {typeKey === 'all' ? `All Competitors (${competitors.length})` : typeKey}
+                {typeKey === 'all' ? `All Competitors (${countVal})` : `${typeKey} (${countVal})`}
               </button>
             );
           })}
@@ -142,8 +173,23 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
       {/* Competitor Battlecards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.length === 0 ? (
-          <div className="col-span-full p-8 text-center text-xs text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
-            No competitors found matching your search.
+          <div className="col-span-full p-8 text-center text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+            {competitors.length === 0 ? (
+              <p>No competitor profiles currently loaded.</p>
+            ) : (
+              <div>
+                <p>No competitors matching your active filter or search query.</p>
+                <button
+                  onClick={() => {
+                    setSelectedType('all');
+                    setSearchQuery('');
+                  }}
+                  className="mt-2 text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                >
+                  Clear filters to view all {competitors.length} competitors
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           filtered.map((comp) => {
@@ -262,7 +308,15 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
 
       {/* Detailed Battlecard Modal */}
       {selectedCompetitor && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Competitor Profile: ${selectedCompetitor.name}`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedCompetitor(null);
+          }}
+          className={`fixed inset-0 ${Z_INDEX.MODAL_BACKDROP} bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-150`}
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 sm:p-8 space-y-6">
             {/* Modal Header */}
             <div className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">

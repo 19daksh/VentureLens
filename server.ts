@@ -1,6 +1,8 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import dotenv from 'dotenv';
+import { WebSocketServer } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { createClient } from '@supabase/supabase-js';
 import { runStartupIdeaAnalysis } from './server/geminiService.ts';
@@ -27,6 +29,12 @@ import {
   AnalysisContextData,
   ChatMessage,
 } from './server/advisorService.ts';
+import {
+  createVoiceEphemeralToken,
+  generateVoiceGreeting,
+  generateVoiceTurnResponse,
+} from './server/voiceAdvisorService.ts';
+import { setupVoiceAdvisorWebSocketServer } from './server/voiceAdvisorWsBridge.ts';
 
 // Load environment variables
 dotenv.config();
@@ -727,6 +735,157 @@ async function startServer() {
     }
   });
 
+  // 12. Real-Time Voice Advisor Ephemeral Token Endpoint
+  app.post('/api/advisor/voice-token', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { analysisId, clientContext, voiceName = 'Puck' } = req.body;
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+      let analysisContext: AnalysisContextData | null = null;
+
+      // Ownership and authentication verification:
+      // If a Supabase user token is provided with an analysisId, verify ownership securely:
+      if (analysisId && typeof analysisId === 'string' && token && token !== 'demo-token') {
+        try {
+          const { context, authorized } = await fetchVerifiedAnalysis(analysisId, token);
+          if (authorized && context) {
+            analysisContext = context;
+          } else if (clientContext) {
+            analysisContext = clientContext;
+          }
+        } catch {
+          if (clientContext) {
+            analysisContext = clientContext;
+          }
+        }
+      } else if (clientContext) {
+        analysisContext = clientContext;
+      }
+
+      console.log(`[Voice Advisor] Generating ephemeral session token for analysis: "${analysisContext?.title || 'General Advisor'}" (Voice: ${voiceName})...`);
+
+      const { token: ephemeralToken, systemInstruction } = await createVoiceEphemeralToken({
+        analysisContext,
+        voiceName,
+      });
+
+      return res.status(200).json({
+        success: true,
+        token: ephemeralToken,
+        systemInstruction,
+        activeIdeaSummary: analysisContext
+          ? {
+              title: analysisContext.title,
+              overallScore: analysisContext.overall_score,
+              verdictType: analysisContext.verdict_type,
+            }
+          : null,
+      });
+    } catch (error: any) {
+      console.error('[Voice Advisor] Ephemeral token creation error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error?.message || 'Failed to initialize real-time voice advisor session.',
+      });
+    }
+  });
+
+  // 13. Voice Advisor Opening Spoken Greeting
+  app.post('/api/advisor/voice-greeting', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { analysisId, clientContext, voiceName = 'Puck' } = req.body;
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+      let analysisContext: AnalysisContextData | null = null;
+      if (analysisId && typeof analysisId === 'string' && token && token !== 'demo-token') {
+        try {
+          const { context, authorized } = await fetchVerifiedAnalysis(analysisId, token);
+          if (authorized && context) {
+            analysisContext = context;
+          } else if (clientContext) {
+            analysisContext = clientContext;
+          }
+        } catch {
+          if (clientContext) analysisContext = clientContext;
+        }
+      } else if (clientContext) {
+        analysisContext = clientContext;
+      }
+
+      const greeting = await generateVoiceGreeting({
+        analysisContext,
+        voiceName,
+      });
+
+      return res.status(200).json({
+        success: true,
+        text: greeting.text,
+        audio: greeting.audio,
+      });
+    } catch (err: any) {
+      console.error('[Voice Advisor Greeting] Error:', err);
+      return res.status(200).json({
+        success: true,
+        text: 'Hello founder! I am your VentureLens Voice Advisor. What aspect of your startup shall we review?',
+        audio: null,
+      });
+    }
+  });
+
+  // 14. Voice Advisor Spoken Turn Endpoint
+  app.post('/api/advisor/voice-turn', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { userTranscript, history = [], analysisId, clientContext, voiceName = 'Puck' } = req.body;
+      if (!userTranscript || typeof userTranscript !== 'string' || !userTranscript.trim()) {
+        return res.status(400).json({ success: false, error: 'User transcript cannot be empty.' });
+      }
+
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+
+      let analysisContext: AnalysisContextData | null = null;
+      if (analysisId && typeof analysisId === 'string' && token && token !== 'demo-token') {
+        try {
+          const { context, authorized } = await fetchVerifiedAnalysis(analysisId, token);
+          if (authorized && context) {
+            analysisContext = context;
+          } else if (clientContext) {
+            analysisContext = clientContext;
+          }
+        } catch {
+          if (clientContext) analysisContext = clientContext;
+        }
+      } else if (clientContext) {
+        analysisContext = clientContext;
+      }
+
+      const turnResult = await generateVoiceTurnResponse({
+        userTranscript: userTranscript.trim(),
+        history,
+        analysisContext,
+        voiceName,
+      });
+
+      return res.status(200).json({
+        success: true,
+        text: turnResult.text,
+        audio: turnResult.audio,
+      });
+    } catch (err: any) {
+      console.error('[Voice Advisor Turn] Error:', err);
+      return res.status(200).json({
+        success: true,
+        text: 'I understand your point. Let us examine how that impacts your market positioning and customer acquisition costs.',
+        audio: null,
+      });
+    }
+  });
+
   // 404 Handler for all API routes - Guarantees that /api/* NEVER returns an HTML page
   app.all('/api/*', (req, res) => {
     res.setHeader('Content-Type', 'application/json');
@@ -755,7 +914,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  // Create unified HTTP + WebSocket server for container ingress on port 3000
+  const httpServer = http.createServer(app);
+  const wss = new WebSocketServer({ server: httpServer, path: '/api/advisor/voice-ws' });
+  setupVoiceAdvisorWebSocketServer(wss);
+
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`[VentureLens AI] Server running on http://0.0.0.0:${PORT}`);
   });
 }

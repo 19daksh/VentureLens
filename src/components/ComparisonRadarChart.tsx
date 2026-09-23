@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { StartupIdea } from '../types/analysis';
 import { useTheme } from '../context/ThemeContext';
+import { calculateRiskResilienceScore } from './Comparison/SideBySideRadarComparison';
 
 interface ComparisonRadarChartProps {
   ideas: StartupIdea[];
@@ -28,17 +29,23 @@ export const ComparisonRadarChart: React.FC<ComparisonRadarChartProps> = ({ idea
   const isDark = theme === 'dark';
 
   const subjects = [
-    { key: 'problem_score', label: 'Problem Strength' },
     { key: 'market_score', label: 'Market Opportunity' },
-    { key: 'competition_score', label: 'Moat/Competition' },
-    { key: 'revenue_score', label: 'Revenue Potential' },
+    { key: 'risk_resilience', label: 'Risk Resilience' },
     { key: 'technical_score', label: 'Tech Feasibility' },
+    { key: 'problem_score', label: 'Problem Strength' },
+    { key: 'revenue_score', label: 'Revenue Potential' },
+    { key: 'competition_score', label: 'Moat/Defensibility' },
   ];
 
   const data = subjects.map(sub => {
     const row: any = { subject: sub.label, fullMark: 100 };
     ideas.forEach((idea, idx) => {
-      const score = (idea.analysis as any)?.[sub.key] ?? 50;
+      let score = 50;
+      if (sub.key === 'risk_resilience') {
+        score = calculateRiskResilienceScore(idea.analysis?.risks).score;
+      } else {
+        score = (idea.analysis as any)?.[sub.key] ?? 50;
+      }
       row[`idea_${idx}`] = score;
     });
     return row;

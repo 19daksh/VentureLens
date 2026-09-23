@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { FeatureMatrixRow, CompetitorProfile, FeatureAvailabilityStatus } from '../../types/competitorIntelligence';
+import { Z_INDEX } from '../../constants/zIndex';
 import { CheckCircle2, MinusCircle, HelpCircle, Search, Filter, Layers, Info } from 'lucide-react';
 
 interface FeatureMatrixTableProps {
@@ -113,7 +114,7 @@ export const FeatureMatrixTable: React.FC<FeatureMatrixTableProps> = ({
         <table className="w-full text-left border-collapse text-xs">
           <thead>
             <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-              <th className="p-3.5 font-bold text-slate-800 dark:text-slate-200 sticky left-0 bg-slate-50 dark:bg-slate-800/95 z-10 min-w-[200px] border-r border-slate-200 dark:border-slate-700">
+              <th className={`p-3.5 font-bold text-slate-800 dark:text-slate-200 sticky left-0 bg-slate-50 dark:bg-slate-800/95 ${Z_INDEX.IN_CONTENT_STICKY} min-w-[200px] border-r border-slate-200 dark:border-slate-700`}>
                 Product Capability
               </th>
               {/* Highlight Your Startup */}
@@ -159,7 +160,7 @@ export const FeatureMatrixTable: React.FC<FeatureMatrixTableProps> = ({
                   className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                 >
                   {/* Feature Title & Description */}
-                  <td className="p-3.5 sticky left-0 bg-white dark:bg-slate-900 z-10 border-r border-slate-200 dark:border-slate-700">
+                  <td className={`p-3.5 sticky left-0 bg-white dark:bg-slate-900 ${Z_INDEX.IN_CONTENT_STICKY} border-r border-slate-200 dark:border-slate-700`}>
                     <div className="flex items-start justify-between gap-1.5">
                       <div>
                         <span className="font-bold text-slate-900 dark:text-white block">
@@ -193,7 +194,15 @@ export const FeatureMatrixTable: React.FC<FeatureMatrixTableProps> = ({
 
                   {/* Competitor Columns */}
                   {competitors.map((comp) => {
-                    const status = row.competitor_status?.[comp.id] || 'Not identified';
+                    const status =
+                      row.competitor_status?.[comp.id] ||
+                      row.competitor_status?.[comp.name] ||
+                      (comp.name
+                        ? Object.entries(row.competitor_status || {}).find(
+                            ([k]) => k.toLowerCase() === comp.name.toLowerCase()
+                          )?.[1]
+                        : undefined) ||
+                      'Not identified';
                     return (
                       <td
                         key={comp.id}

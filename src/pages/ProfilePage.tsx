@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { BackButton } from '../components/BackButton';
 import { User, Building, Mail, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
@@ -62,6 +63,11 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-8 transition-colors">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Contextual Back Navigation */}
+        <div className="mb-6">
+          <BackButton to="/dashboard" label="Back to Dashboard" />
+        </div>
+
         <div className="mb-8">
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">
             Founder Profile

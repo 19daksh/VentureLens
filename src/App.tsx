@@ -27,6 +27,7 @@ import { ComparePage } from './pages/ComparePage';
 import { ReportPage } from './pages/ReportPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
   return (
@@ -122,8 +123,8 @@ export default function App() {
                   }
                 />
 
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                {/* 404 Fallback */}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </main>
             <Footer />

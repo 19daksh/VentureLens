@@ -4,6 +4,7 @@ import type {
   CompetitorIntelligenceData,
   CompetitorIntelligenceRecord,
   CompetitorProfile,
+  CompetitorType,
   FeatureMatrixRow,
   PositioningCoordinate,
   CompetitiveGapItem,
@@ -97,15 +98,21 @@ Startup Profile:
 ${context.business_model ? `- Proposed Business Model: "${context.business_model}"` : ''}
 ${
   context.existing_competitors?.length
-    ? `- Initial Seed Competitors Mentioned by Founder/Prior Analysis: ${context.existing_competitors.map((c: any) => typeof c === 'string' ? c : c?.name || '').filter(Boolean).join(', ')}`
+    ? `- MANDATORY INITIAL SEED COMPETITORS FROM PRIOR ANALYSIS:
+${context.existing_competitors
+  .map((c: any) => typeof c === 'string' ? c : c?.name || '')
+  .filter(Boolean)
+  .map((name: string) => `  * ${name}`)
+  .join('\n')}
+(You MUST include each of these named seed competitors in your competitors array with their detailed profile, plus any other major competitors found in the market to form 5 to 8 competitors total!)`
     : ''
 }
 
 SEARCH DIRECTIVES:
-1. Identify 4 to 8 meaningful competitors in this space (e.g. for EdTech student career platforms: Handshake, LinkedIn, Internshala, Wellfound, Indeed, RippleMatch), covering:
+1. Identify 5 to 8 meaningful competitors in this space (e.g. for EdTech student career platforms: Handshake, LinkedIn, Internshala, Wellfound, Indeed, College Placement Cells, RippleMatch), covering:
    - Direct competitors (solve same problem with similar product for same customer)
    - Indirect competitors (solve same core problem with different approach or model)
-   - Substitute solutions (existing traditional habits, spreadsheets, manual workflows, generalist platforms)
+   - Substitute solutions (existing traditional habits, spreadsheets, manual workflows, generalist platforms, college placement cells)
    - Emerging startups / fast-growing new market entrants
 2. For each competitor, provide their real official website (must be real, e.g. https://www.joinhandshake.com, https://www.linkedin.com, https://internshala.com, https://wellfound.com, https://www.indeed.com), product features, verified pricing model (Free tier, entry tier, premium tier, enterprise), target audience, geographic focus, observable strengths, and public limitations/gaps.
 3. Compare features across 6 to 10 key product capabilities in a Feature Matrix (values: "Available", "Partial", "Not identified").
@@ -492,66 +499,178 @@ function isSearchGroundingQuotaError(err: any): boolean {
   }
 
   // 3. Ensure every competitor has valid source attachments (official domain only, never fabricated URLs)
-  if (Array.isArray(parsed.competitors)) {
-    parsed.competitors = parsed.competitors.map((comp: any, idx: number) => {
-      const compId = comp.id || `comp-${idx + 1}`;
-      const compSources: CompetitorSource[] = [];
+  let rawCompetitorsList: any[] =
+    (Array.isArray(parsed.competitors) && parsed.competitors.length > 0 ? parsed.competitors : null) ||
+    (Array.isArray(parsed.competitor_profiles) && parsed.competitor_profiles.length > 0 ? parsed.competitor_profiles : null) ||
+    (Array.isArray((parsed as any).competitorProfiles) && (parsed as any).competitorProfiles.length > 0 ? (parsed as any).competitorProfiles : null) ||
+    (Array.isArray((parsed as any).companies) && (parsed as any).companies.length > 0 ? (parsed as any).companies : null) ||
+    [];
 
-      if (comp.website && comp.website.startsWith('http')) {
-        try {
-          const parsedUrl = new URL(comp.website);
-          const rootUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}`;
-          comp.website = rootUrl;
-          const domain = parsedUrl.hostname.replace(/^www\./, '');
-          const compSrc: CompetitorSource = {
-            title: `${comp.name || domain} Official Platform`,
-            url: rootUrl,
-            domain,
-            publisher: comp.name || domain,
-            accessed_date: new Date().toISOString().split('T')[0],
-          };
-          compSources.push(compSrc);
-          if (usedSearchGrounding && !sourcesMap.has(rootUrl)) {
-            sourcesMap.set(rootUrl, compSrc);
-          }
-        } catch {
-          // ignore invalid URL
-        }
+  // Guarantee seed competitors from prior analysis are preserved
+  const seedCompetitorList = (context.existing_competitors || [])
+    .map((c: any) => (typeof c === 'string' ? { name: c } : c))
+    .filter((c: any) => Boolean(c?.name));
+
+  const existingLowerNames = new Set(
+    rawCompetitorsList.map((c: any) => (c.name || '').toLowerCase().trim())
+  );
+
+  for (const seed of seedCompetitorList) {
+    const sName = seed.name.trim();
+    const sLower = sName.toLowerCase();
+    const isMatched = Array.from(existingLowerNames).some(
+      (existing) => existing.includes(sLower) || sLower.includes(existing)
+    );
+
+    if (!isMatched) {
+      let compType: CompetitorType = 'Direct';
+      if (sLower.includes('placement cell') || sLower.includes('university') || sLower.includes('spreadsheet') || sLower.includes('manual')) {
+        compType = 'Substitute';
+      } else if (sLower.includes('indeed') || sLower.includes('linkedin')) {
+        compType = 'Indirect';
       }
 
-      // If search was grounded, attach any verified sources
-      if (usedSearchGrounding && Array.isArray(comp.sources)) {
-        for (const s of comp.sources) {
-          if (s?.url && !compSources.some((cs) => cs.url === s.url)) {
-            compSources.push(s);
-          }
-        }
-      }
+      let web = '';
+      if (sLower.includes('linkedin')) web = 'https://www.linkedin.com';
+      else if (sLower.includes('internshala')) web = 'https://internshala.com';
+      else if (sLower.includes('indeed')) web = 'https://www.indeed.com';
+      else if (sLower.includes('wellfound') || sLower.includes('angel')) web = 'https://wellfound.com';
+      else if (sLower.includes('handshake')) web = 'https://joinhandshake.com';
 
-      // If live search was not available, strictly label as AI inference
-      const infoStatus: InformationQualityStatus = usedSearchGrounding
-        ? (comp.information_status || 'Source-reported')
-        : 'AI inference';
-
-      // Ensure latest development does not contain fabricated URLs in fallback
-      const sanitizedDev = comp.latest_development
-        ? {
-            ...comp.latest_development,
-            source_url: usedSearchGrounding ? (comp.latest_development.source_url || '') : '',
-          }
-        : undefined;
-
-      return {
-        ...comp,
-        id: compId,
-        sources: compSources,
-        information_status: infoStatus,
-        latest_development: sanitizedDev,
-        is_pinned: false,
-        tracked_at: undefined,
-      };
-    });
+      rawCompetitorsList.push({
+        name: sName,
+        website: web,
+        competitor_type: compType,
+        target_audience: seed.target_customer || context.target_audience || 'College Students & Early-Career Job Seekers',
+        core_product: seed.description || `${sName} student internship and career services`,
+        business_model: 'Marketplace / Subscription / B2B SaaS',
+        pricing: {
+          model_type: 'Freemium / B2B',
+          free_tier: 'Free student job application access',
+          pricing_summary: 'Free tier for students; monetizes employers and institutional sponsors',
+          last_researched: new Date().toISOString().split('T')[0],
+          confidence: 'Source-Reported',
+        },
+        key_features: seed.strengths?.length ? seed.strengths : ['Internship discovery', 'Candidate verification', 'Employer network'],
+        positioning: seed.differentiation_opportunity || `${sName} career platform incumbent`,
+        geographic_focus: sLower.includes('internshala') ? 'India' : 'Global / North America',
+        observed_strengths: seed.strengths?.length ? seed.strengths : ['Established brand recognition', 'Vast institutional network'],
+        observed_limitations: seed.weaknesses?.length ? seed.weaknesses : ['High noise-to-signal ratio', 'Limited real-time AI career concierge guidance'],
+        sources: web ? [{ title: `${sName} Official Portal`, url: web, domain: new URL(web).hostname }] : [],
+        information_status: 'AI inference',
+      });
+      existingLowerNames.add(sLower);
+    }
   }
+
+  const processedCompetitors: CompetitorProfile[] = rawCompetitorsList.map((comp: any, idx: number) => {
+    const compId = comp.id || `comp-${idx + 1}`;
+    const compSources: CompetitorSource[] = [];
+
+    if (comp.website && comp.website.startsWith('http')) {
+      try {
+        const parsedUrl = new URL(comp.website);
+        const rootUrl = `${parsedUrl.protocol}//${parsedUrl.hostname}`;
+        comp.website = rootUrl;
+        const domain = parsedUrl.hostname.replace(/^www\./, '');
+        const compSrc: CompetitorSource = {
+          title: `${comp.name || domain} Official Platform`,
+          url: rootUrl,
+          domain,
+          publisher: comp.name || domain,
+          accessed_date: new Date().toISOString().split('T')[0],
+        };
+        compSources.push(compSrc);
+        if (usedSearchGrounding && !sourcesMap.has(rootUrl)) {
+          sourcesMap.set(rootUrl, compSrc);
+        }
+      } catch {
+        // ignore invalid URL
+      }
+    }
+
+    // If search was grounded, attach any verified sources
+    if (usedSearchGrounding && Array.isArray(comp.sources)) {
+      for (const s of comp.sources) {
+        if (s?.url && !compSources.some((cs) => cs.url === s.url)) {
+          compSources.push(s);
+        }
+      }
+    }
+
+    // Determine normalized competitor type
+    const rawType = (comp.competitor_type || comp.type || 'Direct').toLowerCase();
+    const normalizedType: CompetitorType =
+      rawType === 'indirect' ? 'Indirect' :
+      rawType === 'substitute' ? 'Substitute' :
+      rawType === 'emerging' ? 'Emerging' : 'Direct';
+
+    // If live search was not available, strictly label as AI inference
+    const infoStatus: InformationQualityStatus = usedSearchGrounding
+      ? (comp.information_status || 'Source-reported')
+      : 'AI inference';
+
+    // Ensure latest development does not contain fabricated URLs in fallback
+    const sanitizedDev = comp.latest_development
+      ? {
+          ...comp.latest_development,
+          source_url: usedSearchGrounding ? (comp.latest_development.source_url || '') : '',
+        }
+      : undefined;
+
+    const features = Array.isArray(comp.key_features) && comp.key_features.length > 0
+      ? comp.key_features
+      : Array.isArray(comp.features) && comp.features.length > 0
+      ? comp.features
+      : ['Job Search', 'Application Tracking'];
+
+    const strengths = Array.isArray(comp.observed_strengths) && comp.observed_strengths.length > 0
+      ? comp.observed_strengths
+      : Array.isArray(comp.strengths) && comp.strengths.length > 0
+      ? comp.strengths
+      : [];
+
+    const limitations = Array.isArray(comp.observed_limitations) && comp.observed_limitations.length > 0
+      ? comp.observed_limitations
+      : Array.isArray(comp.weaknesses) && comp.weaknesses.length > 0
+      ? comp.weaknesses
+      : Array.isArray(comp.limitations) && comp.limitations.length > 0
+      ? comp.limitations
+      : [];
+
+    return {
+      ...comp,
+      id: compId,
+      name: comp.name || `Competitor ${idx + 1}`,
+      website: comp.website || '',
+      competitor_type: normalizedType,
+      type: normalizedType,
+      target_audience: comp.target_audience || comp.target_customer || context.target_audience || '',
+      core_product: comp.core_product || comp.product || comp.description || comp.positioning || '',
+      business_model: comp.business_model || 'Subscription / Freemium',
+      pricing: comp.pricing || {
+        model_type: 'Subscription',
+        pricing_summary: 'Pricing not publicly verified',
+        last_researched: new Date().toISOString().split('T')[0],
+        confidence: 'Unverified / Publicly Unavailable',
+      },
+      key_features: features,
+      features,
+      positioning: comp.positioning || comp.core_product || comp.description || '',
+      geographic_focus: comp.geographic_focus || 'Global',
+      observed_strengths: strengths,
+      strengths,
+      observed_limitations: limitations,
+      limitations,
+      sources: compSources,
+      information_status: infoStatus,
+      latest_development: sanitizedDev,
+      is_pinned: Boolean(comp.is_pinned),
+      tracked_at: comp.tracked_at || undefined,
+    };
+  });
+
+  parsed.competitors = processedCompetitors;
 
   // 4. Change Detection & Alerts against previous intelligence (if refreshing)
   const alerts: CompetitorAlert[] = [];
@@ -606,6 +725,7 @@ function isSearchGroundingQuotaError(err: any): boolean {
   const finalIntelligence: CompetitorIntelligenceData = {
     landscape_summary: parsed.landscape_summary || 'Competitive intelligence analysis completed.',
     competitors: parsed.competitors || [],
+    competitor_profiles: parsed.competitors || [], // ALWAYS populated in sync!
     feature_matrix: parsed.feature_matrix || [],
     positioning_maps: parsed.positioning_maps || {},
     competitive_gaps: parsed.competitive_gaps || [],

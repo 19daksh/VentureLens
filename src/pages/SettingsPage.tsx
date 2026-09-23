@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { BackButton } from '../components/BackButton';
 import {
   User,
   Building,
@@ -141,12 +142,17 @@ export const SettingsPage: React.FC = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-8 transition-colors">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Contextual Back Navigation */}
+        <div className="mb-6">
+          <BackButton to="/dashboard" label="Back to Dashboard" />
+        </div>
+
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight font-['Space_Grotesk',sans-serif]">

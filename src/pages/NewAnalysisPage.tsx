@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAnalysis } from '../context/AnalysisContext';
+import { BackButton } from '../components/BackButton';
 import {
   Sparkles,
   AlertCircle,
@@ -120,6 +121,11 @@ export const NewAnalysisPage: React.FC = () => {
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-10 transition-colors">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Contextual Back Navigation */}
+        <div className="mb-6">
+          <BackButton to="/dashboard" label="Back to Dashboard" />
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 text-xs font-semibold mb-3">

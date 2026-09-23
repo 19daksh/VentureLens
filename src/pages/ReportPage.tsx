@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useAnalysis } from '../context/AnalysisContext';
+import { BackButton } from '../components/BackButton';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { RadarScoreChart } from '../components/RadarScoreChart';
+import { generateValidationPdf } from '../utils/generatePdfReport';
 import {
   Compass,
   ArrowLeft,
   Printer,
+  Download,
+  Check,
+  Loader2,
   FileText,
   ShieldCheck,
   CheckCircle2,
@@ -17,12 +24,151 @@ import {
 export const ReportPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { getIdeaById, loading } = useAnalysis();
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const idea = id ? getIdeaById(id) : null;
   const analysis = idea?.analysis;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!idea || !analysis || isGeneratingPdf) return;
+    try {
+      setIsGeneratingPdf(true);
+      setPdfError(null);
+
+      const reportEl = reportRef.current;
+      if (!reportEl) {
+        throw new Error('Report element ref not available');
+      }
+
+      // Capture the full rendered analysis report element with html2canvas
+      const canvas = await html2canvas(reportEl, {
+        scale: 2, // 2x high resolution for retina/print crispness
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          // In the cloned render tree, remove dark mode so the captured PDF has clean white paper presentation
+          clonedDoc.documentElement.classList.remove('dark');
+        },
+      });
+
+      // Construct a multi-page A4 PDF with jsPDF
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const marginX = 8;
+      const marginTop = 8;
+      const marginBottom = 8;
+      const usableWidth = pdfWidth - marginX * 2; // 194mm
+      const usableHeight = pdfHeight - marginTop - marginBottom; // 281mm
+
+      const pxPerMm = canvas.width / usableWidth;
+      const sliceHeightPx = Math.floor(usableHeight * pxPerMm);
+
+      let yOffset = 0;
+      let pageNumber = 0;
+
+      while (yOffset < canvas.height) {
+        if (pageNumber > 0) {
+          pdf.addPage();
+        }
+
+        const currentSlicePx = Math.min(sliceHeightPx, canvas.height - yOffset);
+        const currentSliceMm = currentSlicePx / pxPerMm;
+
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = currentSlicePx;
+
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(
+            canvas,
+            0,
+            yOffset,
+            canvas.width,
+            currentSlicePx,
+            0,
+            0,
+            canvas.width,
+            currentSlicePx
+          );
+
+          const sliceData = pageCanvas.toDataURL('image/png', 0.95);
+          pdf.addImage(
+            sliceData,
+            'PNG',
+            marginX,
+            marginTop,
+            usableWidth,
+            currentSliceMm,
+            undefined,
+            'FAST'
+          );
+        }
+
+        yOffset += currentSlicePx;
+        pageNumber++;
+      }
+
+      // Add running headers & footers to all pages in jsPDF
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.setTextColor(148, 163, 184); // slate-400
+        pdf.text(
+          'VentureLens AI • Startup Due Diligence Memo',
+          marginX,
+          pdfHeight - 3.5
+        );
+        pdf.text(
+          `Page ${i} of ${totalPages}`,
+          pdfWidth - marginX,
+          pdfHeight - 3.5,
+          { align: 'right' }
+        );
+      }
+
+      const safeTitle = (idea.title || 'Startup-Validation-Summary')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+
+      pdf.save(`VentureLens-Validation-${safeTitle || 'Summary'}.pdf`);
+
+      setPdfDownloaded(true);
+      setTimeout(() => setPdfDownloaded(false), 4000);
+    } catch (err: any) {
+      console.error('Error capturing report with html2canvas and jsPDF, attempting vector fallback:', err);
+      try {
+        await generateValidationPdf(idea, analysis);
+        setPdfDownloaded(true);
+        setTimeout(() => setPdfDownloaded(false), 4000);
+      } catch (fallbackErr: any) {
+        setPdfError('Failed to generate PDF. You can also use the Print button.');
+        setTimeout(() => setPdfError(null), 5000);
+      }
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (loading && (!idea || !analysis)) {
@@ -56,27 +202,59 @@ export const ReportPage: React.FC = () => {
     <div className="bg-slate-100 dark:bg-slate-950 min-h-screen py-8 print:bg-white print:py-0 transition-colors">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 print:px-0">
         {/* Actions bar (hidden in print) */}
-        <div className="mb-6 flex items-center justify-between print:hidden">
-          <Link
-            to={`/analysis/${id}`}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-900 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Analysis</span>
-          </Link>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <BackButton to={`/analysis/${id}`} label="Back to Analysis" />
 
-          <button
-            onClick={handlePrint}
-            id="report-print-btn"
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-colors"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Print / Export PDF</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              id="report-print-btn"
+              title="Open browser print dialog"
+              className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              <Printer className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              <span className="hidden sm:inline">Print</span>
+            </button>
+
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              id="report-download-pdf-btn"
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-80 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed"
+            >
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Capturing & Exporting PDF...</span>
+                </>
+              ) : pdfDownloaded ? (
+                <>
+                  <Check className="w-4 h-4 text-emerald-300" />
+                  <span>Downloaded PDF!</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Download as PDF</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
+        {pdfError && (
+          <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2 print:hidden">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+            <span>{pdfError}</span>
+          </div>
+        )}
+
         {/* The Printable Paper Memo */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 sm:p-12 shadow-sm print:bg-white print:border-none print:shadow-none print:p-0 transition-colors">
+        <div
+          ref={reportRef}
+          id="printable-report-memo"
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 sm:p-12 shadow-sm print:bg-white print:border-none print:shadow-none print:p-0 transition-colors"
+        >
           {/* Top Banner / Memo Header */}
           <div className="pb-6 border-b-2 border-slate-900 dark:border-slate-700 print:border-slate-900 flex items-start justify-between">
             <div>
@@ -207,13 +385,14 @@ export const ReportPage: React.FC = () => {
                     </p>
                   )}
 
-                  {data.competitor_profiles && data.competitor_profiles.length > 0 && (
+                  {((data.competitor_profiles && data.competitor_profiles.length > 0) ||
+                    (data.competitors && data.competitors.length > 0)) && (
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
                         Key Tracked Competitors & Observed Pricing Tiers
                       </span>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        {data.competitor_profiles.slice(0, 4).map((comp) => (
+                        {(data.competitor_profiles || data.competitors)!.slice(0, 4).map((comp) => (
                           <div
                             key={comp.id}
                             className="p-2.5 bg-white dark:bg-slate-900 print:bg-white rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200"
@@ -368,6 +547,41 @@ export const ReportPage: React.FC = () => {
             <span>Generated by VentureLens AI • Gemini Venture Diligence Engine</span>
             <span>Confidential Investment Due Diligence</span>
           </div>
+        </div>
+
+        {/* Bottom actions bar (hidden in print) */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+          <Link
+            to={`/analysis/${id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Return to Interactive Analysis</span>
+          </Link>
+
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            id="report-download-pdf-bottom-btn"
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-80 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Capturing & Exporting PDF...</span>
+              </>
+            ) : pdfDownloaded ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-300" />
+                <span>Downloaded PDF!</span>
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                <span>Download as PDF</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

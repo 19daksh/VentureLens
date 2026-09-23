@@ -363,6 +363,11 @@ export const localDb = {
     return all.find(a => a.idea_id === ideaId && a.user_id === userId) || null;
   },
 
+  getAnalysisById(analysisId: string): FullAnalysis | null {
+    const all = this.getAllAnalyses();
+    return all.find(a => a.id === analysisId) || null;
+  },
+
   getAllAnalyses(): FullAnalysis[] {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ANALYSES);

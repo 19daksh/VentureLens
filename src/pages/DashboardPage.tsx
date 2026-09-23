@@ -18,6 +18,7 @@ import {
   Loader2,
   Sparkles,
   Layers,
+  FileText,
 } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
@@ -187,7 +188,13 @@ export const DashboardPage: React.FC = () => {
                 Clear
               </button>
               <Link
-                to="/compare"
+                to={
+                  selectedCompareIds.length >= 2
+                    ? `/compare?id1=${selectedCompareIds[0]}&id2=${selectedCompareIds[1]}`
+                    : selectedCompareIds.length === 1
+                    ? `/compare?id1=${selectedCompareIds[0]}`
+                    : '/compare'
+                }
                 id="bar-btn-compare-now"
                 className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-xs"
               >
@@ -288,7 +295,7 @@ export const DashboardPage: React.FC = () => {
                 <div
                   key={item.id}
                   id={`idea-card-${item.id}`}
-                  onClick={() => navigate(`/analysis/${item.id}`)}
+                  onClick={() => navigate(`/analysis/${item.id}`, { state: { from: '/dashboard' } })}
                   className={`bg-white dark:bg-slate-900 rounded-2xl border transition-all p-6 shadow-xs hover:shadow-md cursor-pointer flex flex-col justify-between group ${
                     isSelectedForCompare
                       ? 'border-indigo-500 dark:border-indigo-400 ring-2 ring-indigo-500/20'
@@ -356,6 +363,23 @@ export const DashboardPage: React.FC = () => {
                         <GitCompare className="w-3.5 h-3.5" />
                         <span className="text-[10px] hidden sm:inline">Compare</span>
                       </button>
+
+                      {/* PDF Memo / Download */}
+                      {item.analysis && (
+                        <button
+                          type="button"
+                          id={`btn-memo-idea-${item.id}`}
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate(`/analysis/${item.id}/report`);
+                          }}
+                          title="View Investor Memo & Download PDF"
+                          className="p-1.5 rounded-md text-xs font-semibold flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors border border-indigo-200/50 dark:border-indigo-800"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          <span className="text-[10px] hidden sm:inline">PDF Memo</span>
+                        </button>
+                      )}
 
                       {/* Delete */}
                       <button

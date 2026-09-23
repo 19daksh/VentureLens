@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAnalysis } from '../context/AnalysisContext';
+import { BackButton } from '../components/BackButton';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { RadarScoreChart } from '../components/RadarScoreChart';
 import { MarketResearchTab } from '../components/MarketResearch/MarketResearchTab';
 import { FinancialProjectionTab } from '../components/Financials/FinancialProjectionTab';
 import { CompetitorIntelligenceTab } from '../components/CompetitorIntelligence/CompetitorIntelligenceTab';
+import { AnalysisSecondaryNav, ANALYSIS_SECTIONS } from '../components/AnalysisSecondaryNav';
 import {
   Compass,
   ArrowLeft,
   FileText,
+  Download,
   GitCompare,
   Trash2,
   CheckCircle2,
@@ -36,13 +39,98 @@ import {
 export const AnalysisDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getIdeaById, deleteIdea, toggleCompareId, selectedCompareIds, loading } = useAnalysis();
 
-  const [activeTab, setActiveTab] = useState<
-    'problem' | 'market' | 'market-research' | 'competitors' | 'competitor-intelligence' | 'business' | 'financials' | 'tech' | 'risks' | 'mvp' | 'gtm' | 'recommendations'
-  >('problem');
+  const fromHistory = (location.state as any)?.from === '/history';
+  const backDestination = fromHistory ? '/history' : '/dashboard';
+  const backLabel = fromHistory ? 'Back to History' : 'Back to Dashboard';
+
+  const [activeSection, setActiveSection] = useState<string>('problem-demand');
+  const isManualScrolling = useRef(false);
+  const manualScrollTimeout = useRef<number | null>(null);
+
+  const handleSelectSection = (sectionId: string, updateHash = true) => {
+    const el = document.getElementById(sectionId);
+    if (!el) return;
+
+    isManualScrolling.current = true;
+    setActiveSection(sectionId);
+
+    if (updateHash) {
+      window.history.replaceState(null, '', `#${sectionId}`);
+    }
+
+    el.scrollIntoView({ behavior: 'smooth' });
+
+    if (manualScrollTimeout.current) clearTimeout(manualScrollTimeout.current);
+    manualScrollTimeout.current = window.setTimeout(() => {
+      isManualScrolling.current = false;
+    }, 850);
+  };
+
+  // Initial scroll to hash if present in URL
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash) {
+      const timer = setTimeout(() => {
+        handleSelectSection(hash, false);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Listen to hash changes for browser back/forward buttons
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        handleSelectSection(hash, false);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const idea = id ? getIdeaById(id) : null;
+
+  // IntersectionObserver scroll-spy to activate corresponding tabs as user scrolls
+  useEffect(() => {
+    if (!idea || !idea.analysis) return;
+
+    const sectionElements = ANALYSIS_SECTIONS.map((s) => document.getElementById(s.id)).filter(
+      Boolean
+    ) as HTMLElement[];
+    if (sectionElements.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isManualScrolling.current) return;
+
+        const visibleEntries = entries.filter((e) => e.isIntersecting);
+        if (visibleEntries.length > 0) {
+          // Sort by proximity to top of scroll area (approx 130px below top)
+          const sorted = visibleEntries.sort(
+            (a, b) => Math.abs(a.boundingClientRect.top - 130) - Math.abs(b.boundingClientRect.top - 130)
+          );
+          if (sorted[0]?.target?.id) {
+            setActiveSection(sorted[0].target.id);
+          }
+        }
+      },
+      {
+        rootMargin: '-130px 0px -55% 0px',
+        threshold: [0, 0.1, 0.25, 0.5],
+      }
+    );
+
+    sectionElements.forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+      if (manualScrollTimeout.current) clearTimeout(manualScrollTimeout.current);
+    };
+  }, [idea]);
 
   if (loading && !idea) {
     return (
@@ -112,16 +200,10 @@ export const AnalysisDetailPage: React.FC = () => {
   return (
     <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-8 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Navigation Breadcrumb & Actions Bar */}
+        {/* Contextual Back Navigation & Actions Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
-            <Link
-              to="/dashboard"
-              className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title="Back to Dashboard"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
+            <BackButton to={backDestination} label={backLabel} />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/80 px-2.5 py-0.5 rounded-full">
@@ -160,10 +242,11 @@ export const AnalysisDetailPage: React.FC = () => {
             <Link
               to={`/analysis/${id}/report`}
               id="detail-btn-view-report"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors"
+              title="View full report and Download as PDF"
             >
-              <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Investor Memo</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF / Memo</span>
             </Link>
 
             {/* Delete */}
@@ -263,49 +346,20 @@ export const AnalysisDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Categorized Deep-Dive Navigation Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-6 border-b border-slate-200 dark:border-slate-800 scrollbar-none">
-              {[
-                { id: 'problem', label: '1. Problem & Demand', icon: Target },
-                { id: 'market', label: '2. Market Sizing (TAM)', icon: TrendingUp },
-                { id: 'market-research', label: '🌐 Real-Time Market Research', icon: Globe, highlight: true },
-                { id: 'competitors', label: '3. Competitors & Moat', icon: Users },
-                { id: 'competitor-intelligence', label: '🕵️ Competitor Intelligence', icon: Search, highlight: true },
-                { id: 'business', label: '4. Business Model & Pricing', icon: DollarSign },
-                { id: 'financials', label: '💰 Financial Simulator', icon: Calculator, highlight: true },
-                { id: 'tech', label: '5. Tech Architecture', icon: Cpu },
-                { id: 'risks', label: '6. Risk Matrix', icon: ShieldAlert },
-                { id: 'mvp', label: '7. MVP Roadmap', icon: Rocket },
-                { id: 'gtm', label: '8. Go-To-Market', icon: Compass },
-                { id: 'recommendations', label: '9. Next Steps', icon: Sparkles },
-              ].map(tab => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`tab-btn-${tab.id}`}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                      isActive
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : tab.highlight
-                        ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/80 border border-blue-200 dark:border-blue-800'
-                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Sticky Secondary Analysis Navigation Bar */}
+            <AnalysisSecondaryNav
+              activeSection={activeSection}
+              onSelectSection={handleSelectSection}
+            />
 
-            {/* Tab Panes */}
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors">
-              {/* TAB 1: Problem & Demand */}
-              {activeTab === 'problem' && (
-                <div className="space-y-6 animate-in fade-in">
+            {/* Analysis Sections - Rendered Consecutively with Scroll Offsets */}
+            <div className="space-y-8">
+              {/* SECTION 1: Problem & Demand */}
+              <section
+                id="problem-demand"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Problem & Customer Demand</h3>
@@ -376,12 +430,14 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB 2: Market Sizing */}
-              {activeTab === 'market' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 2: Market Sizing */}
+              <section
+                id="market-sizing"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">TAM / SAM / SOM Market Sizing</h3>
@@ -442,19 +498,43 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB: Real-Time Market Research */}
-              {activeTab === 'market-research' && (
-                <div className="animate-in fade-in">
-                  <MarketResearchTab idea={idea} />
+              {/* SECTION 3: Real-Time Market Research */}
+              <section
+                id="market-research"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors focus:outline-hidden"
+              >
+                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                      <Globe className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                          Real-Time Market Research
+                        </h3>
+                        <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider rounded bg-blue-500/10 text-blue-600 dark:text-blue-300 border border-blue-400/20">
+                          LIVE WEB
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Live search grounding, verified sources, and macro industry trends
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
+                <MarketResearchTab idea={idea} />
+              </section>
 
-              {/* TAB 3: Competitors & Moat */}
-              {activeTab === 'competitors' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 4: Competitors & Moat */}
+              <section
+                id="competitors"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Competitors & Strategic Moats</h3>
@@ -542,26 +622,51 @@ export const AnalysisDetailPage: React.FC = () => {
                       </p>
                     </div>
                     <button
-                      onClick={() => setActiveTab('competitor-intelligence')}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all shrink-0"
+                      type="button"
+                      onClick={() => handleSelectSection('competitor-intelligence')}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer"
                     >
                       <span>Open Competitor Intelligence</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                </div>
-              )}
+              </section>
 
-              {/* TAB: Grounded Competitor Intelligence */}
-              {activeTab === 'competitor-intelligence' && (
-                <div className="animate-in fade-in">
-                  <CompetitorIntelligenceTab idea={idea} />
+              {/* SECTION 5: Competitor Intelligence */}
+              <section
+                id="competitor-intelligence"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors focus:outline-hidden"
+              >
+                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                          Competitor Intelligence
+                        </h3>
+                        <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider rounded bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-400/20">
+                          PRO DEEP-DIVE
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Live feature matrices, pricing tiers, and 2D positioning gap maps
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
+                <CompetitorIntelligenceTab idea={idea} />
+              </section>
 
-              {/* TAB 4: Business Model & Pricing */}
-              {activeTab === 'business' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 6: Business Model & Pricing */}
+              <section
+                id="business-model"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Business Model & Unit Economics</h3>
@@ -645,19 +750,43 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB: Financial Projection Simulator */}
-              {activeTab === 'financials' && (
-                <div className="animate-in fade-in">
-                  <FinancialProjectionTab idea={idea} />
+              {/* SECTION 7: Financial Projections Simulator */}
+              <section
+                id="financial-projections"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors focus:outline-hidden"
+              >
+                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <Calculator className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+                          Financial Simulator & Projections
+                        </h3>
+                        <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-400/20">
+                          SIMULATOR
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Interactive runway, unit economics, and 3-year P&L cash-flow models
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
+                <FinancialProjectionTab idea={idea} />
+              </section>
 
-              {/* TAB 5: Technical Architecture */}
-              {activeTab === 'tech' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 8: Technical Architecture */}
+              <section
+                id="tech-architecture"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Technical Feasibility & Architecture</h3>
@@ -734,12 +863,14 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB 6: Risk Matrix */}
-              {activeTab === 'risks' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 9: Risk Matrix */}
+              <section
+                id="risk-matrix"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Pre-Mortem Risk Assessment Matrix</h3>
@@ -791,12 +922,14 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+              </section>
 
-              {/* TAB 7: MVP Roadmap */}
-              {activeTab === 'mvp' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 10: MVP Roadmap */}
+              <section
+                id="mvp-roadmap"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Phased MVP Roadmap & Feature Isolation</h3>
@@ -880,12 +1013,14 @@ export const AnalysisDetailPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB 8: Go-To-Market */}
-              {activeTab === 'gtm' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 11: Go-To-Market */}
+              <section
+                id="go-to-market"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Go-To-Market & Distribution Strategy</h3>
@@ -946,12 +1081,14 @@ export const AnalysisDetailPage: React.FC = () => {
                       </p>
                     </div>
                   )}
-                </div>
-              )}
+              </section>
 
-              {/* TAB 9: Next Steps & Final Recommendations */}
-              {activeTab === 'recommendations' && (
-                <div className="space-y-6 animate-in fade-in">
+              {/* SECTION 12: Next Steps & Final Recommendations */}
+              <section
+                id="recommendations"
+                tabIndex={-1}
+                className="scroll-mt-36 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xs transition-colors space-y-6 focus:outline-hidden"
+              >
                   <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white">Next Steps & Founder Action Plan</h3>
@@ -1038,8 +1175,7 @@ export const AnalysisDetailPage: React.FC = () => {
                       )}
                     </div>
                   )}
-                </div>
-              )}
+              </section>
             </div>
           </>
         ) : (

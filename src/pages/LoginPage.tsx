@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Compass, AlertCircle, Loader2, ArrowRight, UserCheck } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const { signIn } = useAuth();
+  const { signIn, user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -12,6 +12,11 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // If already authenticated, redirect to dashboard
+  if (!loading && user) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const fromPath = (location.state as any)?.from?.pathname || '/dashboard';
 

@@ -133,7 +133,7 @@ export const HistoryPage: React.FC = () => {
                     return (
                       <tr
                         key={item.id}
-                        onClick={() => navigate(`/analysis/${item.id}`)}
+                        onClick={() => navigate(`/analysis/${item.id}`, { state: { from: '/history' } })}
                         className="hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                       >
                         <td className="p-4 font-bold text-slate-900 dark:text-white">
