@@ -25,6 +25,7 @@ import { AnalysisDetailPage } from './pages/AnalysisDetailPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { ComparePage } from './pages/ComparePage';
 import { ReportPage } from './pages/ReportPage';
+import { SharedReportPage } from './pages/SharedReportPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -48,6 +49,8 @@ export default function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/share/:token" element={<SharedReportPage />} />
+                <Route path="/shared/:token" element={<SharedReportPage />} />
 
                 {/* Authenticated Application Routes */}
                 <Route

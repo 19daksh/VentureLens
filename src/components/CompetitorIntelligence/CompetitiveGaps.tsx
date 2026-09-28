@@ -66,13 +66,13 @@ export const CompetitiveGaps: React.FC<CompetitiveGapsProps> = ({
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
                 {gap.affected_segment && (
-                  <span className="text-slate-500">
+                  <span className="text-slate-500 dark:text-slate-400">
                     Underserved Segment:{' '}
                     <strong className="text-slate-700 dark:text-slate-300">{gap.affected_segment}</strong>
                   </span>
                 )}
                 {gap.relevant_competitors && gap.relevant_competitors.length > 0 && (
-                  <span className="text-slate-400 text-[11px]">
+                  <span className="text-slate-400 dark:text-slate-500 text-[11px]">
                     Incumbents: {gap.relevant_competitors.join(', ')}
                   </span>
                 )}
@@ -105,14 +105,14 @@ export const CompetitiveGaps: React.FC<CompetitiveGapsProps> = ({
                   <h5 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
                     {diff.title || diff.dimension.replace('_', ' ')}
                   </h5>
-                  <span className="text-[10px] font-bold text-slate-500 capitalize">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 capitalize">
                     Confidence: {diff.confidence}
                   </span>
                 </div>
 
                 <div className="space-y-2 text-xs">
                   <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block">
                       Incumbent Status Quo
                     </span>
                     <p className="text-slate-700 dark:text-slate-300 mt-0.5">

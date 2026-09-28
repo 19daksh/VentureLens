@@ -1,70 +1,126 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { useAnalysis } from '../context/AnalysisContext';
-import { BackButton } from '../components/BackButton';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { RadarScoreChart } from '../components/RadarScoreChart';
-import { generateValidationPdf } from '../utils/generatePdfReport';
-import { ShareReportModal } from '../components/ShareReportModal';
+import { fetchSharedReport, verifyReportPasscode } from '../services/shareService';
+import { SharedReportRecord } from '../types/share';
 import {
   Compass,
-  ArrowLeft,
   Printer,
   Download,
-  Share2,
   Check,
   Loader2,
-  FileText,
-  ShieldCheck,
-  CheckCircle2,
+  Lock,
+  KeyRound,
   AlertTriangle,
-  TrendingUp,
+  FileX,
+  Shield,
+  CheckCircle2,
+  ExternalLink,
+  Sparkles,
+  Users,
 } from 'lucide-react';
 
-export const ReportPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const { getIdeaById, loading } = useAnalysis();
+export const SharedReportPage: React.FC = () => {
+  const { token } = useParams<{ token: string }>();
   const reportRef = useRef<HTMLDivElement>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [record, setRecord] = useState<SharedReportRecord | null>(null);
+  const [requiresPasscode, setRequiresPasscode] = useState(false);
+  const [passcode, setPasscode] = useState('');
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // PDF Export states
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfDownloaded, setPdfDownloaded] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-  const idea = id ? getIdeaById(id) : null;
-  const analysis = idea?.analysis;
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid share link.');
+      setLoading(false);
+      return;
+    }
+
+    loadSharedReport(token);
+  }, [token]);
+
+  const loadSharedReport = async (shareToken: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchSharedReport(shareToken);
+      if (res.error) {
+        setError(res.error);
+      } else if (res.requiresPasscode) {
+        setRequiresPasscode(true);
+        setRecord(res.record);
+      } else if (res.record) {
+        setRecord(res.record);
+        setRequiresPasscode(false);
+      } else {
+        setError('Shared validation memo could not be found.');
+      }
+    } catch (err: any) {
+      setError('Failed to connect to VentureLens AI. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUnlockPasscode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !passcode.trim()) return;
+
+    setIsVerifying(true);
+    setPasscodeError(null);
+
+    try {
+      const result = await verifyReportPasscode(token, passcode.trim());
+      if (result.valid && result.snapshot && record) {
+        setRecord({
+          ...record,
+          snapshot: result.snapshot,
+        });
+        setRequiresPasscode(false);
+      } else {
+        setPasscodeError(result.error || 'Incorrect passcode. Please check with the author.');
+      }
+    } catch (err) {
+      setPasscodeError('Error validating passcode. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleDownloadPdf = async () => {
-    if (!idea || !analysis || isGeneratingPdf) return;
+    if (!record?.snapshot?.idea || !record?.snapshot?.analysis || isGeneratingPdf) return;
     try {
       setIsGeneratingPdf(true);
-      setPdfError(null);
 
       const reportEl = reportRef.current;
-      if (!reportEl) {
-        throw new Error('Report element ref not available');
-      }
+      if (!reportEl) return;
 
-      // Capture the full rendered analysis report element with html2canvas
       const canvas = await html2canvas(reportEl, {
-        scale: 2, // 2x high resolution for retina/print crispness
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
         windowWidth: 1200,
         onclone: (clonedDoc) => {
-          // In the cloned render tree, remove dark mode so the captured PDF has clean white paper presentation
           clonedDoc.documentElement.classList.remove('dark');
         },
       });
 
-      // Construct a multi-page A4 PDF with jsPDF
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
@@ -76,8 +132,8 @@ export const ReportPage: React.FC = () => {
       const marginX = 8;
       const marginTop = 8;
       const marginBottom = 8;
-      const usableWidth = pdfWidth - marginX * 2; // 194mm
-      const usableHeight = pdfHeight - marginTop - marginBottom; // 281mm
+      const usableWidth = pdfWidth - marginX * 2;
+      const usableHeight = pdfHeight - marginTop - marginBottom;
 
       const pxPerMm = canvas.width / usableWidth;
       const sliceHeightPx = Math.floor(usableHeight * pxPerMm);
@@ -114,153 +170,235 @@ export const ReportPage: React.FC = () => {
           );
 
           const sliceData = pageCanvas.toDataURL('image/png', 0.95);
-          pdf.addImage(
-            sliceData,
-            'PNG',
-            marginX,
-            marginTop,
-            usableWidth,
-            currentSliceMm,
-            undefined,
-            'FAST'
-          );
+          pdf.addImage(sliceData, 'PNG', marginX, marginTop, usableWidth, currentSliceMm, undefined, 'FAST');
         }
 
         yOffset += currentSlicePx;
         pageNumber++;
       }
 
-      // Add running headers & footers to all pages in jsPDF
       const totalPages = pdf.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(7);
-        pdf.setTextColor(148, 163, 184); // slate-400
-        pdf.text(
-          'VentureLens AI • Startup Due Diligence Memo',
-          marginX,
-          pdfHeight - 3.5
-        );
-        pdf.text(
-          `Page ${i} of ${totalPages}`,
-          pdfWidth - marginX,
-          pdfHeight - 3.5,
-          { align: 'right' }
-        );
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('VentureLens AI • Shared Due Diligence Memo', marginX, pdfHeight - 3.5);
+        pdf.text(`Page ${i} of ${totalPages}`, pdfWidth - marginX, pdfHeight - 3.5, { align: 'right' });
       }
 
-      const safeTitle = (idea.title || 'Startup-Validation-Summary')
+      const safeTitle = (record.snapshot.idea.title || 'Startup-Validation-Summary')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
 
-      pdf.save(`VentureLens-Validation-${safeTitle || 'Summary'}.pdf`);
-
+      pdf.save(`VentureLens-Shared-Memo-${safeTitle}.pdf`);
       setPdfDownloaded(true);
       setTimeout(() => setPdfDownloaded(false), 4000);
-    } catch (err: any) {
-      console.error('Error capturing report with html2canvas and jsPDF, attempting vector fallback:', err);
-      try {
-        await generateValidationPdf(idea, analysis);
-        setPdfDownloaded(true);
-        setTimeout(() => setPdfDownloaded(false), 4000);
-      } catch (fallbackErr: any) {
-        setPdfError('Failed to generate PDF. You can also use the Print button.');
-        setTimeout(() => setPdfError(null), 5000);
-      }
+    } catch (err) {
+      console.error('Failed to export PDF:', err);
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
-  if (loading && (!idea || !analysis)) {
+  // 1. Loading State
+  if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950 transition-colors">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-3" />
-        <p className="text-xs text-slate-500 dark:text-slate-400">Loading investor memo...</p>
+      <div className="min-h-[75vh] flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950">
+        <div className="relative mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 animate-pulse">
+            <Compass className="w-6 h-6 animate-spin" />
+          </div>
+        </div>
+        <h2 className="text-base font-bold text-slate-800 dark:text-slate-200">
+          Decrypting Shared Validation Memo...
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Verifying security token and retrieving diligence records
+        </p>
       </div>
     );
   }
 
-  if (!idea || !analysis) {
+  // 2. Error State (Not found, expired, or revoked)
+  if (error || !record) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950 transition-colors">
-        <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" />
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Report Not Available</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Please complete validation before viewing the investor memo.
-        </p>
-        <Link
-          to="/dashboard"
-          className="mt-4 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-        >
-          Return to Dashboard
-        </Link>
+      <div className="min-h-[75vh] flex flex-col items-center justify-center p-6 text-center bg-slate-50 dark:bg-slate-950">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-sm text-center">
+          <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+            <FileX className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            Memo Unavailable or Link Expired
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+            {error || 'This shared validation link is invalid, has expired, or was revoked by the founder.'}
+          </p>
+
+          <div className="mt-6 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-2.5 justify-center">
+            <Link
+              to="/"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors"
+            >
+              Explore VentureLens AI
+            </Link>
+            <Link
+              to="/login"
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-xl transition-colors"
+            >
+              Log In to Your Workspace
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
+
+  // 3. Passcode Required State
+  if (requiresPasscode) {
+    return (
+      <div className="min-h-[75vh] flex flex-col items-center justify-center p-6 text-center bg-slate-50 dark:bg-slate-950">
+        <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-xl text-left">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-4">
+            <Lock className="w-5 h-5" />
+          </div>
+
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            Passcode Protected Memo
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <strong>{record.authorName || 'The author'}</strong> has protected this startup validation memo for{' '}
+            <span className="text-slate-800 dark:text-slate-200 font-semibold">{record.ideaTitle}</span>.
+          </p>
+
+          {passcodeError && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{passcodeError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleUnlockPasscode} className="mt-5 space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Enter Access Passcode</span>
+              </label>
+              <input
+                type="password"
+                required
+                autoFocus
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                placeholder="Enter PIN or Passcode..."
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isVerifying || !passcode.trim()}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              {isVerifying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Verifying PIN...</span>
+                </>
+              ) : (
+                <span>Unlock Validation Memo</span>
+              )}
+            </button>
+          </form>
+
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-4">
+            Don't have the passcode? Contact {record.authorEmail || 'the team member who shared this link'}.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { idea, analysis } = record.snapshot;
+  const allowPdf = record.config.allowDownloadPdf ?? true;
+  const includeFinancials = record.config.includeFinancials ?? true;
 
   return (
     <div className="bg-slate-100 dark:bg-slate-950 min-h-screen py-8 print:bg-white print:py-0 transition-colors">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 print:px-0">
-        {/* Actions bar (hidden in print) */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <BackButton to={`/analysis/${id}`} label="Back to Analysis" />
+        {/* Shared Team Banner (hidden in print) */}
+        <div className="mb-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  Shared Team Validation Memo
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                  Read Only
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Shared by <strong className="text-slate-700 dark:text-slate-300">{record.authorName || 'Founder'}</strong>
+                {record.authorEmail && <span> ({record.authorEmail})</span>} •{' '}
+                {new Date(record.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
+          </div>
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsShareModalOpen(true)}
-              id="report-share-btn"
-              title="Share validation memo with team members"
-              className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 px-3 py-2 rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer"
-            >
-              <Share2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Share</span>
-            </button>
-
-            <button
               onClick={handlePrint}
-              id="report-print-btn"
-              title="Open browser print dialog"
-              className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              title="Print Memo"
+              className="inline-flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              <Printer className="w-4 h-4 text-slate-500" />
               <span className="hidden sm:inline">Print</span>
             </button>
 
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              id="report-download-pdf-btn"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-80 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed"
+            {allowPdf && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-80 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Exporting PDF...</span>
+                  </>
+                ) : pdfDownloaded ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span>Downloaded!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>Download PDF</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            <Link
+              to="/new-analysis"
+              className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs"
             >
-              {isGeneratingPdf ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Capturing & Exporting PDF...</span>
-                </>
-              ) : pdfDownloaded ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-300" />
-                  <span>Downloaded PDF!</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Download as PDF</span>
-                </>
-              )}
-            </button>
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400 dark:text-indigo-600" />
+              <span className="hidden sm:inline">Validate Your Idea</span>
+              <span className="sm:hidden">New</span>
+            </Link>
           </div>
         </div>
-
-        {pdfError && (
-          <div className="mb-4 p-3 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-lg text-xs text-rose-700 dark:text-rose-300 flex items-center gap-2 print:hidden">
-            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
-            <span>{pdfError}</span>
-          </div>
-        )}
 
         {/* The Printable Paper Memo */}
         <div
@@ -381,7 +519,7 @@ export const ReportPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Grounded Competitor Intelligence & Moat Analysis */}
+          {/* Competitor Intelligence & Moat Analysis */}
           {(idea.competitor_intelligence || analysis.competitor_intelligence) && (() => {
             const ci = idea.competitor_intelligence || analysis.competitor_intelligence;
             const data = ci?.intelligence_data;
@@ -414,21 +552,12 @@ export const ReportPage: React.FC = () => {
                               <span className="font-bold text-slate-900 dark:text-white print:text-slate-900">{comp.name}</span>
                               <span className="text-[10px] text-slate-500">{comp.competitor_type}</span>
                             </div>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{comp.pricing?.pricing_summary || 'Pricing not publicly verified'}</p>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {comp.pricing?.pricing_summary || 'Pricing not publicly verified'}
+                            </p>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
-
-                  {data.competitive_gaps && data.competitive_gaps.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs">
-                      <span className="font-bold text-indigo-700 dark:text-indigo-400 print:text-indigo-700 block mb-1">
-                        Primary White-Space Opportunity:
-                      </span>
-                      <p className="text-slate-700 dark:text-slate-300 print:text-slate-700">
-                        <strong>{data.competitive_gaps[0].title}:</strong> {data.competitive_gaps[0].evidence}
-                      </p>
                     </div>
                   )}
                 </div>
@@ -436,10 +565,10 @@ export const ReportPage: React.FC = () => {
             );
           })()}
 
-          {/* Unit Economics */}
+          {/* Business Model */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-              4. Business Model & Unit Economics
+              5. Business Model Architecture
             </h3>
             <div className="p-4 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-xl border border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs text-slate-700 dark:text-slate-300 print:text-slate-700 space-y-1.5">
               <p><strong className="text-slate-900 dark:text-white print:text-slate-900">Monetization Architecture:</strong> {analysis.business_model?.recommended_business_model || (analysis.business_model as any)?.recommended_pricing || 'B2B SaaS / Tiered Subscription'}</p>
@@ -448,68 +577,69 @@ export const ReportPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Financial Projections & Capital Modeling */}
-          {(idea.financial_projection || analysis.financial_projection) && (() => {
-            const fp = idea.financial_projection || analysis.financial_projection;
-            const sm = fp?.summary_metrics;
-            const ue = fp?.unit_economics;
-            const curr = fp?.currency || 'INR';
-            const currSymbol = curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : '₹';
-            return (
-              <div className="space-y-3 mb-8">
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-                  5. Financial Projections & Capital Model ({fp?.projection_period || 36} Months)
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
-                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Projected Revenue</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
-                      {currSymbol} {(sm?.total_revenue_projection || 0).toLocaleString()}
-                    </p>
+          {/* Financial Projections (Respects Author Privacy Permission) */}
+          {includeFinancials ? (
+            (idea.financial_projection || analysis.financial_projection) && (() => {
+              const fp = idea.financial_projection || analysis.financial_projection;
+              const sm = fp?.summary_metrics;
+              const ue = fp?.unit_economics;
+              const curr = fp?.currency || 'INR';
+              const currSymbol = curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : '₹';
+              return (
+                <div className="space-y-3 mb-8">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
+                    6. Financial Projections & Capital Model ({fp?.projection_period || 36} Months)
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Projected Revenue</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
+                        {currSymbol} {(sm?.total_revenue_projection || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Expenses</p>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
+                        {currSymbol} {(sm?.total_expenses_projection || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Break-Even Milestone</p>
+                      <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 print:text-emerald-600 mt-0.5">
+                        {sm?.break_even_month ? `Month ${sm.break_even_month}` : 'After Horizon'}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
+                      <p className="text-[10px] text-slate-500 uppercase font-semibold">Suggested Capital</p>
+                      <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 print:text-indigo-600 mt-0.5">
+                        {currSymbol} {(fp?.funding_analysis?.total_capital_recommendation || sm?.funding_gap || 0).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
-                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Total Expenses</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white print:text-slate-900 mt-0.5">
-                      {currSymbol} {(sm?.total_expenses_projection || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
-                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Break-Even Milestone</p>
-                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 print:text-emerald-600 mt-0.5">
-                      {sm?.break_even_month ? `Month ${sm.break_even_month}` : 'After Horizon'}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200">
-                    <p className="text-[10px] text-slate-500 uppercase font-semibold">Suggested Capital</p>
-                    <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 print:text-indigo-600 mt-0.5">
-                      {currSymbol} {(fp?.funding_analysis?.total_capital_recommendation || sm?.funding_gap || 0).toLocaleString()}
-                    </p>
-                  </div>
+
+                  {ue && (
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <span><strong>CAC:</strong> {ue.cac ? `${currSymbol} ${ue.cac}` : 'N/A'}</span>
+                      <span><strong>LTV:</strong> {ue.ltv ? `${currSymbol} ${ue.ltv}` : 'N/A'}</span>
+                      <span><strong>LTV:CAC:</strong> {ue.ltv_cac_ratio ? `${ue.ltv_cac_ratio}x` : 'N/A'}</span>
+                      <span><strong>Gross Margin:</strong> {ue.gross_margin_pct}%</span>
+                      <span><strong>Payback:</strong> {ue.payback_period_months ? `${ue.payback_period_months} mo` : 'N/A'}</span>
+                    </div>
+                  )}
                 </div>
-
-                {ue && (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 print:bg-slate-50 rounded-lg border border-slate-200 dark:border-slate-700 print:border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
-                    <span><strong>CAC:</strong> {ue.cac ? `${currSymbol} ${ue.cac}` : 'N/A'}</span>
-                    <span><strong>LTV:</strong> {ue.ltv ? `${currSymbol} ${ue.ltv}` : 'N/A'}</span>
-                    <span><strong>LTV:CAC:</strong> {ue.ltv_cac_ratio ? `${ue.ltv_cac_ratio}x` : 'N/A'}</span>
-                    <span><strong>Gross Margin:</strong> {ue.gross_margin_pct}%</span>
-                    <span><strong>Payback:</strong> {ue.payback_period_months ? `${ue.payback_period_months} mo` : 'N/A'}</span>
-                  </div>
-                )}
-
-                {fp?.ai_insights?.financial_summary && (
-                  <p className="text-xs text-slate-600 dark:text-slate-300 print:text-slate-600 leading-relaxed italic">
-                    &ldquo;{fp.ai_insights.financial_summary}&rdquo;
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+              );
+            })()
+          ) : (
+            <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400 mb-8">
+              <Shield className="w-4 h-4 mx-auto mb-1 text-slate-400" />
+              <span>Detailed unit economics and financial projections withheld by author.</span>
+            </div>
+          )}
 
           {/* Pre-Mortem Risks */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-              6. Pre-Mortem Risk Assessment
+              7. Pre-Mortem Risk Assessment
             </h3>
             <div className="space-y-2">
               {analysis.risks?.slice(0, 3).map((r, idx) => (
@@ -525,10 +655,10 @@ export const ReportPage: React.FC = () => {
             </div>
           </div>
 
-          {/* MVP Must-Haves */}
+          {/* MVP Scope */}
           <div className="space-y-3 mb-8">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-              6. Non-Negotiable MVP Scope (First 6–8 Weeks)
+              8. Non-Negotiable MVP Scope
             </h3>
             <div className="space-y-1.5">
               {analysis.mvp_roadmap?.must_have_features?.map((f, idx) => (
@@ -548,7 +678,7 @@ export const ReportPage: React.FC = () => {
               <div className="space-y-3 mb-8">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider">
-                    7. Prioritized 6-Month Growth Roadmap & Milestones
+                    9. Prioritized 6-Month Growth Roadmap & Milestones
                   </h3>
                   <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">
                     North Star: {rdmp.northStarMetric?.name} ({rdmp.northStarMetric?.sixMonthTarget})
@@ -583,7 +713,7 @@ export const ReportPage: React.FC = () => {
           {/* Final Strategic Verdict */}
           <div className="pt-6 border-t-2 border-slate-900 dark:border-slate-700 print:border-slate-900">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white print:text-slate-900 uppercase tracking-wider mb-2">
-              7. Strategic Synthesis
+              9. Strategic Synthesis
             </h3>
             <p className="text-xs text-slate-800 dark:text-slate-200 print:text-slate-800 leading-relaxed font-medium">
               {typeof analysis.final_verdict === 'object' ? (analysis.final_verdict as any).verdict : analysis.final_verdict}
@@ -601,63 +731,7 @@ export const ReportPage: React.FC = () => {
             <span>Confidential Investment Due Diligence</span>
           </div>
         </div>
-
-        {/* Bottom actions bar (hidden in print) */}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
-          <Link
-            to={`/analysis/${id}`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Return to Interactive Analysis</span>
-          </Link>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsShareModalOpen(true)}
-              id="report-share-bottom-btn"
-              className="inline-flex items-center gap-1.5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 px-3.5 py-2 rounded-lg text-xs font-bold shadow-2xs transition-all cursor-pointer"
-            >
-              <Share2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Share Memo</span>
-            </button>
-
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              id="report-download-pdf-bottom-btn"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-80 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed"
-            >
-              {isGeneratingPdf ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Capturing & Exporting PDF...</span>
-                </>
-              ) : pdfDownloaded ? (
-                <>
-                  <Check className="w-4 h-4 text-emerald-300" />
-                  <span>Downloaded PDF!</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Download as PDF</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
       </div>
-
-      {/* Share Report Modal */}
-      {idea && analysis && (
-        <ShareReportModal
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          idea={idea}
-          analysis={analysis}
-        />
-      )}
     </div>
   );
 };

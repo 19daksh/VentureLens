@@ -513,7 +513,7 @@ export const CompetitorIntelligenceTab: React.FC<CompetitorIntelligenceTabProps>
 
         <div className="flex items-center gap-2 flex-wrap">
           {researchedAt && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
               <Clock className="w-3.5 h-3.5" />
               <span>Updated: {new Date(researchedAt).toLocaleDateString()}</span>
             </div>
@@ -577,7 +577,7 @@ export const CompetitorIntelligenceTab: React.FC<CompetitorIntelligenceTabProps>
 
       {/* Information Quality Standard Taxonomy Banner */}
       <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-1.5 text-slate-500 font-semibold text-[11px] uppercase tracking-wider">
+        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold text-[11px] uppercase tracking-wider">
           <Info className="w-3.5 h-3.5 text-indigo-500" />
           <span>Information Verification Standards:</span>
         </div>

@@ -278,7 +278,7 @@ export const ComparePage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Share2 className="w-3.5 h-3.5 text-slate-500" />
+                  <Share2 className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span className="hidden sm:inline">Share Link</span>
                 </>
               )}
@@ -330,7 +330,7 @@ export const ComparePage: React.FC = () => {
 
               {/* Direct ID input and fetcher */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
                   Or fetch by specific Analysis / Idea ID:
                 </span>
                 <div className="flex items-center gap-2">
@@ -407,7 +407,7 @@ export const ComparePage: React.FC = () => {
 
               {/* Direct ID input and fetcher */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
                   Or fetch by specific Analysis / Idea ID:
                 </span>
                 <div className="flex items-center gap-2">
@@ -504,19 +504,19 @@ export const ComparePage: React.FC = () => {
                     </h5>
                     <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 space-y-1.5">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">TAM:</span>
+                        <span className="text-slate-500 dark:text-slate-400">TAM:</span>
                         <strong className="text-slate-800 dark:text-slate-200">
                           {slotIdeaA.analysis?.market_analysis?.tam || 'N/A'}
                         </strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">SAM:</span>
+                        <span className="text-slate-500 dark:text-slate-400">SAM:</span>
                         <strong className="text-slate-800 dark:text-slate-200">
                           {slotIdeaA.analysis?.market_analysis?.sam || 'N/A'}
                         </strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Growth Velocity:</span>
+                        <span className="text-slate-500 dark:text-slate-400">Growth Velocity:</span>
                         <strong className="text-emerald-600 dark:text-emerald-400">
                           {slotIdeaA.analysis?.market_analysis?.growth_potential || 'High Growth'}
                         </strong>
@@ -552,7 +552,7 @@ export const ComparePage: React.FC = () => {
                   {/* Verdict & Executive Summary */}
                   <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Verdict</span>
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Verdict</span>
                       <span
                         className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${
                           slotIdeaB.analysis?.verdict_type === 'Build'
@@ -577,19 +577,19 @@ export const ComparePage: React.FC = () => {
                     </h5>
                     <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 space-y-1.5">
                       <div className="flex justify-between">
-                        <span className="text-slate-500">TAM:</span>
+                        <span className="text-slate-500 dark:text-slate-400">TAM:</span>
                         <strong className="text-slate-800 dark:text-slate-200">
                           {slotIdeaB.analysis?.market_analysis?.tam || 'N/A'}
                         </strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">SAM:</span>
+                        <span className="text-slate-500 dark:text-slate-400">SAM:</span>
                         <strong className="text-slate-800 dark:text-slate-200">
                           {slotIdeaB.analysis?.market_analysis?.sam || 'N/A'}
                         </strong>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Growth Velocity:</span>
+                        <span className="text-slate-500 dark:text-slate-400">Growth Velocity:</span>
                         <strong className="text-emerald-600 dark:text-emerald-400">
                           {slotIdeaB.analysis?.market_analysis?.growth_potential || 'High Growth'}
                         </strong>

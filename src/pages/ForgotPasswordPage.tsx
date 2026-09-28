@@ -54,20 +54,20 @@ export const ForgotPasswordPage: React.FC = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 shadow-sm rounded-2xl border border-slate-200 sm:px-10">
+        <div className="bg-white dark:bg-slate-900 py-8 px-6 shadow-sm rounded-2xl border border-slate-200 dark:border-slate-800 sm:px-10 transition-colors">
           {sent ? (
             <div className="text-center py-4 space-y-4">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">Check your email</h3>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                If an account exists for <span className="font-semibold text-slate-800">{email}</span>, a password reset link has been dispatched.
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Check your email</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                If an account exists for <span className="font-semibold text-slate-800 dark:text-slate-200">{email}</span>, a password reset link has been dispatched.
               </p>
               <div className="pt-4">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                  className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Sign in</span>
@@ -77,7 +77,7 @@ export const ForgotPasswordPage: React.FC = () => {
           ) : (
             <>
               {error && (
-                <div className="mb-5 p-3 rounded-lg bg-rose-50 border border-rose-200 flex items-start gap-2.5 text-xs text-rose-700">
+                <div className="mb-5 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                   <span>{error}</span>
                 </div>
@@ -85,7 +85,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-slate-700">
+                  <label htmlFor="email" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                     Account email address
                   </label>
                   <input
@@ -95,7 +95,7 @@ export const ForgotPasswordPage: React.FC = () => {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="founder@venture.com"
-                    className="mt-1 block w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs shadow-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="mt-1 block w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs shadow-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   />
                 </div>
 
@@ -119,7 +119,7 @@ export const ForgotPasswordPage: React.FC = () => {
               <div className="mt-6 text-center">
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Return to login</span>

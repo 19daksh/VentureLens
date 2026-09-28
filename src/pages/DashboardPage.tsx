@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAnalysis } from '../context/AnalysisContext';
 import { ScoreBadge } from '../components/ScoreBadge';
+import { IdeaHealthScore } from '../components/IdeaHealthScore';
+import { IdeaHealthMiniBadge } from '../components/IdeaHealthMiniBadge';
 import {
   PlusCircle,
   Search,
@@ -29,6 +31,15 @@ export const DashboardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [industryFilter, setIndustryFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'date_desc' | 'score_desc' | 'score_asc'>('date_desc');
+  const [selectedHealthIdeaId, setSelectedHealthIdeaId] = useState<string>('');
+
+  const handleInspectHealth = (id: string) => {
+    setSelectedHealthIdeaId(id);
+    const element = document.getElementById('idea-health-score-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   // Compute metrics
   const metrics = useMemo(() => {
@@ -88,7 +99,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-8 transition-colors">
+    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-8 pb-28 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
@@ -140,7 +151,7 @@ export const DashboardPage: React.FC = () => {
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Average Score</span>
               <TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
             </div>
-            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{metrics.avgScore}<span className="text-sm font-semibold text-slate-400 dark:text-slate-400">/100</span></p>
+            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{metrics.avgScore}<span className="text-sm font-bold text-slate-500 dark:text-slate-300 ml-0.5">/100</span></p>
             <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Portfolio viability index</p>
           </div>
 
@@ -161,6 +172,15 @@ export const DashboardPage: React.FC = () => {
             <p className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2">{metrics.pivots}</p>
             <p className="text-[11px] text-slate-500 dark:text-slate-300 mt-1">Score &lt; 60 (Requires pivot)</p>
           </div>
+        </div>
+
+        {/* Idea Health Score Section */}
+        <div className="mb-8">
+          <IdeaHealthScore
+            ideas={ideas}
+            selectedIdeaId={selectedHealthIdeaId || undefined}
+            onSelectIdea={id => setSelectedHealthIdeaId(id)}
+          />
         </div>
 
         {/* Selected Compare Floating / Sticky Bar */}
@@ -331,6 +351,14 @@ export const DashboardPage: React.FC = () => {
                           {item.analysis.verdict}
                         </span>
                       </div>
+                    )}
+
+                    {/* Idea Health Score Mini Gauge */}
+                    {item.analysis && (
+                      <IdeaHealthMiniBadge
+                        idea={item}
+                        onInspectHealth={handleInspectHealth}
+                      />
                     )}
                   </div>
 

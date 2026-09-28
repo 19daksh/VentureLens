@@ -144,7 +144,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
 
                 {/* Pricing Summary */}
                 <div className="mt-3 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider block">
                     Pricing Summary
                   </span>
                   <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
@@ -156,7 +156,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
                 <div className="mt-4 space-y-2 text-xs">
                   {/* Free Tier */}
                   <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 font-medium">Free Tier / Trial:</span>
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Free Tier / Trial:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[180px] truncate">
                       {p?.free_tier || 'None / Not listed'}
                     </span>
@@ -164,7 +164,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
 
                   {/* Entry Tier */}
                   <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 font-medium">Entry Plan:</span>
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Entry Plan:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[180px] truncate">
                       {p?.entry_tier || 'Pricing not publicly verified'}
                     </span>
@@ -173,7 +173,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
                   {/* Mid Tier */}
                   {p?.mid_tier && (
                     <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-slate-500 font-medium">Mid Tier / Pro:</span>
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">Mid Tier / Pro:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[180px] truncate">
                         {p.mid_tier}
                       </span>
@@ -182,7 +182,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
 
                   {/* Premium Tier */}
                   <div className="flex items-center justify-between py-1 border-b border-slate-100 dark:border-slate-800">
-                    <span className="text-slate-500 font-medium">Premium Plan:</span>
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Premium Plan:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[180px] truncate">
                       {p?.premium_tier || 'Pricing not publicly verified'}
                     </span>
@@ -190,7 +190,7 @@ export const PricingIntelligence: React.FC<PricingIntelligenceProps> = ({
 
                   {/* Enterprise Tier */}
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-slate-500 font-medium">Enterprise:</span>
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">Enterprise:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 text-right max-w-[180px] truncate">
                       {p?.enterprise_tier || 'Contact Sales / Custom'}
                     </span>

@@ -1914,8 +1914,8 @@ export const FinancialProjectionTab: React.FC<FinancialProjectionTabProps> = ({ 
                     <td className="py-2 px-3 font-medium text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(p.gross_revenue, currency)}
                     </td>
-                    <td className="py-2 px-3 text-slate-500">{formatCurrency(p.variable_costs, currency)}</td>
-                    <td className="py-2 px-3 text-slate-500">{formatCurrency(p.fixed_costs, currency)}</td>
+                    <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{formatCurrency(p.variable_costs, currency)}</td>
+                    <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{formatCurrency(p.fixed_costs, currency)}</td>
                     <td
                       className={`py-2 px-3 font-medium ${
                         p.net_profit >= 0

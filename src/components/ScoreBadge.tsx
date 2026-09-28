@@ -56,7 +56,7 @@ export const ScoreBadge: React.FC<ScoreBadgeProps> = ({ score, size = 'md', show
         className={`inline-flex items-center rounded-lg border shadow-xs ${theme.bg} ${sizeClasses[size]}`}
       >
         <span>{score}</span>
-        <span className="text-[0.7em] opacity-70 font-semibold ml-0.5">/100</span>
+        <span className="text-[0.72em] font-bold ml-0.5 tracking-tight text-current/90">/100</span>
       </span>
       {showLabel && (
         <span className={`text-xs font-semibold ${theme.color}`}>

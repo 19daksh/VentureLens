@@ -1,6 +1,7 @@
 import { MarketResearchRecord } from './marketResearch';
 import { FinancialProjectionRecord } from './financialProjection';
 import { CompetitorIntelligenceRecord } from './competitorIntelligence';
+import { GrowthRoadmapRecord } from './growthRoadmap';
 
 export interface StartupIdea {
   id: string;
@@ -17,6 +18,7 @@ export interface StartupIdea {
   market_research?: MarketResearchRecord;
   financial_projection?: FinancialProjectionRecord;
   competitor_intelligence?: CompetitorIntelligenceRecord;
+  growth_roadmap?: GrowthRoadmapRecord;
 }
 
 

@@ -10,10 +10,12 @@ import {
   Cpu,
   ShieldAlert,
   Rocket,
+  Milestone,
   Compass,
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  Grid,
 } from 'lucide-react';
 import { Z_INDEX } from '../constants/zIndex';
 
@@ -46,6 +48,14 @@ export const ANALYSIS_SECTIONS: AnalysisSectionItem[] = [
     badge: 'PRO',
     highlight: true,
   },
+  {
+    id: 'swot-analysis',
+    label: 'SWOT Analysis & Matrix',
+    shortLabel: 'SWOT Matrix',
+    icon: Grid,
+    badge: 'GEMINI',
+    highlight: true,
+  },
   { id: 'business-model', label: '4. Business Model & Pricing', shortLabel: 'Revenue', icon: DollarSign },
   {
     id: 'financial-projections',
@@ -58,6 +68,14 @@ export const ANALYSIS_SECTIONS: AnalysisSectionItem[] = [
   { id: 'tech-architecture', label: '5. Technical Feasibility', shortLabel: 'Tech Feasibility', icon: Cpu },
   { id: 'risk-matrix', label: '6. Risk Matrix', shortLabel: 'Risks', icon: ShieldAlert },
   { id: 'mvp-roadmap', label: '7. MVP Roadmap', shortLabel: 'MVP Roadmap', icon: Rocket },
+  {
+    id: 'growth-roadmap',
+    label: 'Growth Roadmap (6-Mo)',
+    shortLabel: 'Growth Roadmap',
+    icon: Milestone,
+    badge: '6-MO',
+    highlight: true,
+  },
   { id: 'go-to-market', label: '8. Go-To-Market', shortLabel: 'GTM Strategy', icon: Compass },
   { id: 'recommendations', label: '9. Recommendations', shortLabel: 'Next Steps', icon: Sparkles },
 ];

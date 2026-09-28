@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { createServer as createViteServer } from 'vite';
@@ -35,6 +36,20 @@ import {
   generateVoiceTurnResponse,
 } from './server/voiceAdvisorService.ts';
 import { setupVoiceAdvisorWebSocketServer } from './server/voiceAdvisorWsBridge.ts';
+import {
+  executeGrowthRoadmapGeneration,
+  saveGrowthRoadmapToSupabase,
+  getGrowthRoadmapFromSupabase,
+  updateCompletedActionIds,
+} from './server/growthRoadmapService.ts';
+import {
+  processSpokenStartupPitch,
+} from './server/voiceIdeaService.ts';
+import {
+  generateSwotAnalysisWithGemini,
+  getCachedSwot,
+  saveSwot,
+} from './server/swotService.ts';
 
 // Load environment variables
 dotenv.config();
@@ -883,6 +898,375 @@ async function startServer() {
         text: 'I understand your point. Let us examine how that impacts your market positioning and customer acquisition costs.',
         audio: null,
       });
+    }
+  });
+
+  // 15. Voice Pitch Processor (Microphone audio or speech-to-text transcript -> structured startup idea)
+  app.post('/api/voice/process-pitch', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { transcript, audioBase64, mimeType } = req.body;
+
+      if (!transcript && !audioBase64) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please provide either a speech transcript or recorded audio data.',
+        });
+      }
+
+      console.log(`[VentureLens Voice] Processing spoken pitch (${transcript ? `transcript: ${transcript.length} chars` : 'raw audio buffer'})...`);
+
+      const extracted = await processSpokenStartupPitch({
+        transcript,
+        audioBase64,
+        mimeType,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: extracted,
+      });
+    } catch (err: any) {
+      console.error('[VentureLens Voice] Error processing pitch:', err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to process voice pitch.',
+      });
+    }
+  });
+
+  // 16. Gemini SWOT Analysis Endpoint
+  app.post('/api/swot', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { title, description, industry, target_audience, additional_info, idea_id, lens } = req.body;
+
+      if (!description || typeof description !== 'string' || description.trim().length < 10) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please provide a valid idea description (at least 10 characters) to generate a SWOT analysis.',
+        });
+      }
+
+      console.log(`[VentureLens AI] Generating Gemini SWOT analysis for: "${title || 'Untitled'}"...`);
+
+      const swotResult = await generateSwotAnalysisWithGemini({
+        title: title ? String(title).trim() : 'Startup Concept',
+        description: String(description).trim(),
+        industry: industry ? String(industry).trim() : 'Technology',
+        target_audience: target_audience ? String(target_audience).trim() : 'Target Market',
+        additional_info: additional_info ? String(additional_info).trim() : undefined,
+        idea_id: idea_id ? String(idea_id) : undefined,
+        lens: lens || 'balanced',
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: swotResult,
+      });
+    } catch (err: any) {
+      console.error('[VentureLens AI] SWOT Generation Error:', err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to generate SWOT analysis.',
+      });
+    }
+  });
+
+  // Fetch saved SWOT analysis by swot id or idea id
+  app.get('/api/swot/:key', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const { key } = req.params;
+      const cached = getCachedSwot(key);
+      if (cached) {
+        return res.status(200).json({ success: true, data: cached });
+      }
+      return res.status(404).json({ success: false, error: 'SWOT analysis not found.' });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Update or customize SWOT analysis
+  app.put('/api/swot/:key', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+      const updated = req.body;
+      if (!updated || !updated.strengths) {
+        return res.status(400).json({ success: false, error: 'Invalid SWOT data payload.' });
+      }
+      saveSwot(updated);
+      return res.status(200).json({ success: true, data: updated });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // SHARED VALIDATION REPORT ENDPOINTS
+  // --------------------------------------------------------------------------
+  const sharedReportsDir = path.join(process.cwd(), 'data');
+  const sharedReportsFile = path.join(sharedReportsDir, 'shared_reports.json');
+  const sharedReportsMap = new Map<string, any>();
+
+  // Initialize shared reports from file
+  try {
+    if (!fs.existsSync(sharedReportsDir)) {
+      fs.mkdirSync(sharedReportsDir, { recursive: true });
+    }
+    if (fs.existsSync(sharedReportsFile)) {
+      const raw = fs.readFileSync(sharedReportsFile, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((item) => {
+          if (item && item.id) sharedReportsMap.set(item.id, item);
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Shared Reports] Initialization notice:', e);
+  }
+
+  const persistSharedReportsToFile = () => {
+    try {
+      const items = Array.from(sharedReportsMap.values());
+      fs.writeFileSync(sharedReportsFile, JSON.stringify(items, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Shared Reports] Failed to persist file:', err);
+    }
+  };
+
+  // 1. Create or update a shared report record
+  app.post('/api/reports/share', (req, res) => {
+    try {
+      const record = req.body;
+      if (!record || !record.id || !record.snapshot) {
+        return res.status(400).json({ success: false, error: 'Invalid share record payload.' });
+      }
+
+      record.updatedAt = new Date().toISOString();
+      if (!record.createdAt) record.createdAt = record.updatedAt;
+      if (typeof record.viewCount !== 'number') record.viewCount = 0;
+
+      sharedReportsMap.set(record.id, record);
+      persistSharedReportsToFile();
+
+      const host = req.get('host') || 'localhost:3000';
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const shareUrl = `${protocol}://${host}/share/${record.id}`;
+
+      return res.status(200).json({
+        success: true,
+        record,
+        shareUrl,
+      });
+    } catch (err: any) {
+      console.error('[Shared Reports Share] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error.' });
+    }
+  });
+
+  // 2. Fetch shared report by token
+  app.get('/api/reports/share/:token', (req, res) => {
+    try {
+      const { token } = req.params;
+      const record = sharedReportsMap.get(token);
+
+      if (!record) {
+        return res.status(404).json({ success: false, error: 'Shared report not found.' });
+      }
+
+      if (record.revoked) {
+        return res.status(410).json({ success: false, error: 'This share link has been revoked by the author.' });
+      }
+
+      if (record.config?.expiresAt && new Date(record.config.expiresAt) < new Date()) {
+        return res.status(410).json({ success: false, error: 'This share link has expired.' });
+      }
+
+      // Check passcode requirement
+      if (record.config?.accessLevel === 'passcode') {
+        // Return meta without sensitive snapshot until passcode is verified
+        return res.status(200).json({
+          success: true,
+          requiresPasscode: true,
+          meta: {
+            id: record.id,
+            ideaId: record.ideaId,
+            ideaTitle: record.ideaTitle,
+            authorName: record.authorName,
+            authorEmail: record.authorEmail,
+            createdAt: record.createdAt,
+            config: {
+              accessLevel: record.config.accessLevel,
+              allowDownloadPdf: record.config.allowDownloadPdf,
+              includeFinancials: record.config.includeFinancials,
+              expiresAt: record.config.expiresAt,
+            },
+          },
+        });
+      }
+
+      // Increment view count
+      record.viewCount = (record.viewCount || 0) + 1;
+      record.lastViewedAt = new Date().toISOString();
+      persistSharedReportsToFile();
+
+      return res.status(200).json({
+        success: true,
+        requiresPasscode: false,
+        record,
+      });
+    } catch (err: any) {
+      console.error('[Shared Reports Fetch] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error.' });
+    }
+  });
+
+  // 3. Verify passcode and return full snapshot
+  app.post('/api/reports/share/:token/verify', (req, res) => {
+    try {
+      const { token } = req.params;
+      const { passcode } = req.body;
+      const record = sharedReportsMap.get(token);
+
+      if (!record || record.revoked) {
+        return res.status(404).json({ valid: false, error: 'Shared report not found or revoked.' });
+      }
+
+      const expected = record.config?.passcode;
+      if (!expected || expected.trim() === String(passcode || '').trim()) {
+        record.viewCount = (record.viewCount || 0) + 1;
+        record.lastViewedAt = new Date().toISOString();
+        persistSharedReportsToFile();
+
+        return res.status(200).json({
+          valid: true,
+          record,
+          snapshot: record.snapshot,
+        });
+      }
+
+      return res.status(401).json({
+        valid: false,
+        error: 'Incorrect passcode. Please verify with the memo author.',
+      });
+    } catch (err: any) {
+      console.error('[Shared Reports Verify] Error:', err);
+      return res.status(500).json({ valid: false, error: err.message || 'Internal server error.' });
+    }
+  });
+
+  // 4. Revoke shared report
+  app.delete('/api/reports/share/:token', (req, res) => {
+    try {
+      const { token } = req.params;
+      const record = sharedReportsMap.get(token);
+
+      if (record) {
+        record.revoked = true;
+        record.updatedAt = new Date().toISOString();
+        persistSharedReportsToFile();
+      }
+
+      return res.status(200).json({ success: true, message: 'Share link revoked successfully.' });
+    } catch (err: any) {
+      console.error('[Shared Reports Revoke] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error.' });
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // AUTOMATED GROWTH ROADMAP ENDPOINTS
+  // --------------------------------------------------------------------------
+
+  // 1. Generate new 6-month growth roadmap
+  app.post('/api/growth-roadmap/generate', async (req, res) => {
+    try {
+      const { ideaId, pace, teamCapacity, analysisContext } = req.body;
+      if (!ideaId) {
+        return res.status(400).json({ success: false, error: 'Missing ideaId parameter.' });
+      }
+
+      // Extract auth token if user is signed in
+      const authHeader = req.headers.authorization;
+      const userToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+
+      const roadmapData = await executeGrowthRoadmapGeneration({
+        ideaId,
+        pace,
+        teamCapacity,
+        analysisContext,
+      });
+
+      const record = await saveGrowthRoadmapToSupabase({
+        ideaId,
+        userId: analysisContext?.idea?.user_id,
+        userToken,
+        pace: pace || 'lean_bootstrapped',
+        teamCapacity: teamCapacity || 'small_team',
+        roadmapData,
+        completedActionIds: [],
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: record,
+      });
+    } catch (err: any) {
+      console.error('[Growth Roadmap Generate] Error:', err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to generate growth roadmap.',
+      });
+    }
+  });
+
+  // 2. Fetch existing growth roadmap for an idea
+  app.get('/api/growth-roadmap/:ideaId', async (req, res) => {
+    try {
+      const { ideaId } = req.params;
+      const authHeader = req.headers.authorization;
+      const userToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+
+      const record = await getGrowthRoadmapFromSupabase({
+        ideaId,
+        userToken,
+      });
+
+      if (!record) {
+        return res.status(404).json({ success: false, error: 'No roadmap found for this idea.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: record,
+      });
+    } catch (err: any) {
+      console.error('[Growth Roadmap Fetch] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error.' });
+    }
+  });
+
+  // 3. Update completed action item IDs
+  app.put('/api/growth-roadmap/:ideaId/progress', async (req, res) => {
+    try {
+      const { ideaId } = req.params;
+      const { completedActionIds } = req.body;
+
+      if (!Array.isArray(completedActionIds)) {
+        return res.status(400).json({ success: false, error: 'completedActionIds must be an array.' });
+      }
+
+      const updated = await updateCompletedActionIds(ideaId, completedActionIds);
+      return res.status(200).json({
+        success: true,
+        data: updated,
+      });
+    } catch (err: any) {
+      console.error('[Growth Roadmap Progress] Error:', err);
+      return res.status(500).json({ success: false, error: err.message || 'Internal server error.' });
     }
   });
 

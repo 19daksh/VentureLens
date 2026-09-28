@@ -7,7 +7,11 @@ import { RadarScoreChart } from '../components/RadarScoreChart';
 import { MarketResearchTab } from '../components/MarketResearch/MarketResearchTab';
 import { FinancialProjectionTab } from '../components/Financials/FinancialProjectionTab';
 import { CompetitorIntelligenceTab } from '../components/CompetitorIntelligence/CompetitorIntelligenceTab';
+import { SwotAnalysisCard } from '../components/SwotAnalysisCard';
+import { GrowthRoadmapSection } from '../components/GrowthRoadmapSection';
 import { AnalysisSecondaryNav, ANALYSIS_SECTIONS } from '../components/AnalysisSecondaryNav';
+import { fetchSwotAnalysis, generateSwotAnalysis, updateSwotAnalysis } from '../services/swotService';
+import { SwotAnalysisData } from '../types/swot';
 import {
   Compass,
   ArrowLeft,
@@ -49,6 +53,11 @@ export const AnalysisDetailPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>('problem-demand');
   const isManualScrolling = useRef(false);
   const manualScrollTimeout = useRef<number | null>(null);
+
+  // SWOT Analysis State
+  const [swotData, setSwotData] = useState<SwotAnalysisData | null>(null);
+  const [isSwotLoading, setIsSwotLoading] = useState<boolean>(false);
+  const [swotError, setSwotError] = useState<string | null>(null);
 
   const handleSelectSection = (sectionId: string, updateHash = true) => {
     const el = document.getElementById(sectionId);
@@ -132,6 +141,76 @@ export const AnalysisDetailPage: React.FC = () => {
     };
   }, [idea]);
 
+  // Load or generate SWOT analysis based on startup idea description
+  useEffect(() => {
+    if (!idea) return;
+    let isMounted = true;
+
+    async function loadSwot() {
+      setIsSwotLoading(true);
+      setSwotError(null);
+      try {
+        const cached = await fetchSwotAnalysis(idea.id);
+        if (cached && isMounted) {
+          setSwotData(cached);
+          setIsSwotLoading(false);
+          return;
+        }
+
+        // Generate on demand if not cached
+        const generated = await generateSwotAnalysis({
+          title: idea.title,
+          description: idea.description,
+          industry: idea.industry,
+          target_audience: idea.target_audience,
+          additional_info: idea.additional_info,
+          idea_id: idea.id,
+          lens: 'balanced',
+        });
+
+        if (isMounted) {
+          setSwotData(generated);
+        }
+      } catch (err: any) {
+        console.warn('[AnalysisDetailPage] SWOT auto-load notice:', err);
+        if (isMounted) {
+          setSwotError(err.message || 'Could not load SWOT analysis.');
+        }
+      } finally {
+        if (isMounted) setIsSwotLoading(false);
+      }
+    }
+
+    loadSwot();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [idea?.id]);
+
+  const handleRegenerateSwot = async (lens: 'balanced' | 'aggressive_growth' | 'bootstrapped' | 'defensive_moat') => {
+    if (!idea) return;
+    setIsSwotLoading(true);
+    setSwotError(null);
+    try {
+      const generated = await generateSwotAnalysis({
+        title: idea.title,
+        description: idea.description,
+        industry: idea.industry,
+        target_audience: idea.target_audience,
+        additional_info: idea.additional_info,
+        idea_id: idea.id,
+        lens,
+      });
+      setSwotData(generated);
+    } catch (err: any) {
+      console.error('[AnalysisDetailPage] Regenerate SWOT Error:', err);
+      setSwotError(err.message || 'Failed to regenerate SWOT analysis.');
+    } finally {
+      setIsSwotLoading(false);
+    }
+  };
+
   if (loading && !idea) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -198,7 +277,7 @@ export const AnalysisDetailPage: React.FC = () => {
   const verdictTheme = getVerdictTheme(analysis?.verdict_type);
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen py-8 transition-colors">
+    <div className="bg-slate-50 dark:bg-slate-950 min-h-screen pt-8 pb-28 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Contextual Back Navigation & Actions Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
@@ -287,34 +366,34 @@ export const AnalysisDetailPage: React.FC = () => {
                   </div>
 
                   <div className="mt-6">
-                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">
                       Executive Summary
                     </h3>
-                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mt-2.5 leading-relaxed font-normal">
+                    <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 mt-2.5 leading-relaxed font-normal">
                       {analysis.executive_summary}
                     </p>
                   </div>
 
                   {/* Dimension score chips */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Problem</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 text-center">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Problem</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.problem_score}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Market</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 text-center">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Market</p>
                       <p className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">{analysis.market_score}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Competition</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 text-center">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Competition</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.competition_score}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Revenue</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 text-center">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Revenue</p>
                       <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{analysis.revenue_score}</p>
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-100 dark:border-slate-700 text-center col-span-2 sm:col-span-1">
-                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Technical</p>
+                    <div className="bg-slate-50 dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/80 dark:border-slate-700 text-center col-span-2 sm:col-span-1">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Technical</p>
                       <p className="text-lg font-extrabold text-slate-800 dark:text-slate-100 mt-0.5">{analysis.technical_score}</p>
                     </div>
                   </div>
@@ -447,8 +526,8 @@ export const AnalysisDetailPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Addressable Market (TAM)</span>
+                    <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Total Addressable Market (TAM)</span>
                       <p className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
                         {analysis.market_analysis?.tam || '$10B+'}
                       </p>
@@ -573,27 +652,27 @@ export const AnalysisDetailPage: React.FC = () => {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {analysis.competitor_analysis?.competitors?.map((comp, idx) => (
-                        <div key={idx} className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 space-y-3">
+                        <div key={idx} className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 space-y-3">
                           <div className="flex items-center justify-between">
                             <h5 className="text-sm font-bold text-slate-900 dark:text-white">{comp.name}</h5>
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
                               Competitor {idx + 1}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400">{comp.description}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{comp.description}</p>
 
                           <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-slate-200 dark:border-slate-700">
                             <div>
-                              <strong className="text-slate-700 dark:text-slate-300 block mb-0.5">Strengths:</strong>
-                              <ul className="text-slate-500 dark:text-slate-400 space-y-0.5">
+                              <strong className="text-slate-700 dark:text-slate-200 block mb-0.5">Strengths:</strong>
+                              <ul className="text-slate-600 dark:text-slate-300 space-y-0.5">
                                 {comp.strengths?.slice(0, 2).map((s, sIdx) => (
                                   <li key={sIdx}>• {s}</li>
                                 ))}
                               </ul>
                             </div>
                             <div>
-                              <strong className="text-slate-700 dark:text-slate-300 block mb-0.5">Weaknesses:</strong>
-                              <ul className="text-slate-500 dark:text-slate-400 space-y-0.5">
+                              <strong className="text-slate-700 dark:text-slate-200 block mb-0.5">Weaknesses:</strong>
+                              <ul className="text-slate-600 dark:text-slate-300 space-y-0.5">
                                 {comp.weaknesses?.slice(0, 2).map((w, wIdx) => (
                                   <li key={wIdx}>• {w}</li>
                                 ))}
@@ -661,6 +740,60 @@ export const AnalysisDetailPage: React.FC = () => {
                 <CompetitorIntelligenceTab idea={idea} />
               </section>
 
+              {/* SECTION: Gemini SWOT Analysis & TOWS Matrix */}
+              <section
+                id="swot-analysis"
+                tabIndex={-1}
+                className="scroll-mt-36 focus:outline-hidden"
+              >
+                {swotData ? (
+                  <SwotAnalysisCard
+                    data={swotData}
+                    isLoading={isSwotLoading}
+                    onRegenerate={handleRegenerateSwot}
+                    onUpdate={async (updated) => {
+                      setSwotData(updated);
+                      await updateSwotAnalysis(updated);
+                    }}
+                  />
+                ) : isSwotLoading ? (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 sm:p-12 text-center shadow-xs">
+                    <Sparkles className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Synthesizing SWOT Analysis with Gemini API...
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                      Extracting internal operational strengths, structural vulnerabilities, and external market opportunities based on the initial idea description.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 text-center shadow-xs">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      Generate Institutional SWOT Analysis
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4 max-w-md mx-auto">
+                      Use Gemini 3.8 to construct an unvarnished 4-quadrant SWOT matrix and cross-quadrant TOWS strategic action items.
+                    </p>
+                    {swotError && (
+                      <p className="text-xs text-rose-600 dark:text-rose-400 mb-3 font-semibold">
+                        {swotError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRegenerateSwot('balanced')}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generate SWOT with Gemini</span>
+                    </button>
+                  </div>
+                )}
+              </section>
+
               {/* SECTION 6: Business Model & Pricing */}
               <section
                 id="business-model"
@@ -677,19 +810,19 @@ export const AnalysisDetailPage: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Pricing Model</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Pricing Model</p>
                       <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
                         {analysis.business_model?.recommended_business_model || (analysis.business_model as any)?.recommended_pricing || 'Subscription / B2B SaaS'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Pricing Strategy</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Pricing Strategy</p>
                       <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-1">
                         {analysis.business_model?.pricing_strategy || 'Value-Based Pricing'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Target Segment</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Target Segment</p>
                       <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                         {analysis.business_model?.customer_segment || 'Early Adopters & SMBs'}
                       </p>
@@ -796,15 +929,15 @@ export const AnalysisDetailPage: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Architecture Complexity</p>
-                      <p className="text-sm font-bold text-slate-900 dark:text-white mt-1 capitalize">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Architecture Complexity</p>
+                      <p className="text-base font-extrabold text-slate-900 dark:text-white mt-1 capitalize">
                         {analysis.technical_feasibility?.complexity || 'Moderate'}
                       </p>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Feasibility Score</p>
-                      <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Feasibility Score</p>
+                      <p className="text-base font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">
                         {analysis.technical_feasibility?.technical_feasibility_score ?? analysis.technical_score}/100
                       </p>
                     </div>
@@ -1015,6 +1148,9 @@ export const AnalysisDetailPage: React.FC = () => {
                   )}
               </section>
 
+              {/* AUTOMATED GROWTH ROADMAP: 6-Month Prioritized Milestone Plan */}
+              <GrowthRoadmapSection idea={idea} analysis={analysis} />
+
               {/* SECTION 11: Go-To-Market */}
               <section
                 id="go-to-market"
@@ -1031,13 +1167,13 @@ export const AnalysisDetailPage: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Initial Beachhead Customer</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Initial Beachhead Customer</p>
                       <p className="text-xs font-semibold text-slate-900 dark:text-white mt-1 leading-relaxed">
                         {analysis.go_to_market?.initial_target_customer || 'Early adopter niche buyers with urgent unmet workflows'}
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60">
-                      <p className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase">Market Positioning</p>
+                      <p className="text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wider">Market Positioning</p>
                       <p className="text-xs font-semibold text-indigo-950 dark:text-indigo-200 mt-1 leading-relaxed">
                         {analysis.go_to_market?.positioning || 'Precision purpose-built solution replacing fragmented manual tools'}
                       </p>

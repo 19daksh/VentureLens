@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAnalysis } from '../context/AnalysisContext';
 import { BackButton } from '../components/BackButton';
+import { VoiceIdeaRecorder } from '../components/VoiceIdeaRecorder';
+import { SwotAnalysisCard } from '../components/SwotAnalysisCard';
+import { generateSwotAnalysis } from '../services/swotService';
+import { SwotAnalysisData } from '../types/swot';
 import {
   Sparkles,
   AlertCircle,
@@ -12,6 +16,9 @@ import {
   Zap,
   ShieldCheck,
   Compass,
+  Mic,
+  MicOff,
+  Radio,
 } from 'lucide-react';
 
 const SAMPLE_IDEAS = [
@@ -73,6 +80,56 @@ export const NewAnalysisPage: React.FC = () => {
   const [description, setDescription] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
+  const [isInlineDictating, setIsInlineDictating] = useState(false);
+  const inlineRecognitionRef = useRef<any>(null);
+
+  // SWOT Analysis State
+  const [swotData, setSwotData] = useState<SwotAnalysisData | null>(null);
+  const [isGeneratingSwot, setIsGeneratingSwot] = useState(false);
+  const [swotError, setSwotError] = useState<string | null>(null);
+  const [swotLens, setSwotLens] = useState<'balanced' | 'aggressive_growth' | 'bootstrapped' | 'defensive_moat'>('balanced');
+
+  const handleGenerateSwot = async (overrideLens?: 'balanced' | 'aggressive_growth' | 'bootstrapped' | 'defensive_moat') => {
+    if (!description.trim() || description.trim().length < 15) {
+      setSwotError('Please write or dictate at least 15 characters in the description before generating a SWOT analysis.');
+      return;
+    }
+
+    setSwotError(null);
+    setIsGeneratingSwot(true);
+
+    try {
+      const chosenIndustry = industry === 'Other' && customIndustry.trim() ? customIndustry.trim() : industry;
+      const targetLens = overrideLens || swotLens;
+
+      const result = await generateSwotAnalysis({
+        title: title.trim() || 'Emerging Startup Concept',
+        description: description.trim(),
+        industry: chosenIndustry,
+        target_audience: targetAudience.trim() || 'Early Adopters & Target Buyers',
+        additional_info: additionalInfo.trim() || undefined,
+        lens: targetLens,
+      });
+
+      setSwotData(result);
+    } catch (err: any) {
+      console.error('[NewAnalysisPage] SWOT Error:', err);
+      setSwotError(err.message || 'Could not generate SWOT analysis. Please try again.');
+    } finally {
+      setIsGeneratingSwot(false);
+    }
+  };
+
+  // Clean up inline recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (inlineRecognitionRef.current) {
+        try {
+          inlineRecognitionRef.current.stop();
+        } catch {}
+      }
+    };
+  }, []);
 
   const handleApplySample = (sample: (typeof SAMPLE_IDEAS)[0]) => {
     setTitle(sample.title);
@@ -81,6 +138,85 @@ export const NewAnalysisPage: React.FC = () => {
     setDescription(sample.description);
     setAdditionalInfo(sample.additional_info);
     setFormError(null);
+  };
+
+  const handleVoiceApplyAll = (data: {
+    title: string;
+    industry: string;
+    customIndustry?: string;
+    targetAudience: string;
+    description: string;
+    additionalInfo?: string;
+  }) => {
+    setTitle(data.title);
+    if (INDUSTRIES.includes(data.industry)) {
+      setIndustry(data.industry);
+      setCustomIndustry('');
+    } else {
+      setIndustry('Other');
+      setCustomIndustry(data.customIndustry || data.industry);
+    }
+    setTargetAudience(data.targetAudience);
+    setDescription(data.description);
+    if (data.additionalInfo) {
+      setAdditionalInfo(data.additionalInfo);
+    }
+    setFormError(null);
+  };
+
+  const handleVoiceApplyDescription = (text: string) => {
+    setDescription((prev) => (prev.trim() ? `${prev.trim()}\n\n${text.trim()}` : text.trim()));
+    setFormError(null);
+  };
+
+  const toggleInlineDictation = () => {
+    if (isInlineDictating) {
+      if (inlineRecognitionRef.current) {
+        try {
+          inlineRecognitionRef.current.stop();
+        } catch {}
+      }
+      setIsInlineDictating(false);
+      return;
+    }
+
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setFormError('Speech recognition is not supported in this browser. Please use the Voice Pitch Recorder component above.');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            const transcript = event.results[i][0].transcript;
+            setDescription((prev) => (prev.trim() ? `${prev.trim()} ${transcript.trim()}` : transcript.trim()));
+          }
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('[Inline Dictation] error:', event?.error);
+        setIsInlineDictating(false);
+      };
+
+      recognition.onend = () => {
+        setIsInlineDictating(false);
+      };
+
+      recognition.start();
+      inlineRecognitionRef.current = recognition;
+      setIsInlineDictating(true);
+    } catch (err: any) {
+      setIsInlineDictating(false);
+      setFormError('Could not start microphone dictation: ' + err.message);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,7 +277,7 @@ export const NewAnalysisPage: React.FC = () => {
         </div>
 
         {/* Quick Sample Selector Buttons */}
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs mb-8 transition-colors">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs mb-6 transition-colors">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
@@ -162,6 +298,15 @@ export const NewAnalysisPage: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* Microphone-Based Voice Idea Recorder Component */}
+        {!isAnalyzing && (
+          <VoiceIdeaRecorder
+            onApplyAll={handleVoiceApplyAll}
+            onApplyDescriptionOnly={handleVoiceApplyDescription}
+            currentDescription={description}
+          />
+        )}
 
         {/* Interactive Analyzing State Modal / Banner */}
         {isAnalyzing ? (
@@ -287,9 +432,34 @@ export const NewAnalysisPage: React.FC = () => {
               {/* 3. Description (Problem & Solution) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label htmlFor="idea-input-description" className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                    Concept Description & Core Value Proposition *
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="idea-input-description" className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Concept Description & Core Value Proposition *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={toggleInlineDictation}
+                      id="inline-mic-dictate-btn"
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md transition-all border ${
+                        isInlineDictating
+                          ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-300 dark:border-rose-800 animate-pulse'
+                          : 'bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-slate-200 dark:border-slate-700'
+                      }`}
+                      title={isInlineDictating ? 'Click to stop dictation' : 'Click to dictate directly into description with microphone'}
+                    >
+                      {isInlineDictating ? (
+                        <>
+                          <Radio className="w-3 h-3 text-rose-500 animate-ping" />
+                          <span>Listening...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3 h-3" />
+                          <span>Dictate with Mic</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     {description.length} chars (minimum 20)
                   </span>
@@ -303,6 +473,130 @@ export const NewAnalysisPage: React.FC = () => {
                   placeholder="Explain the specific friction or painful problem your customer faces, how your proposed solution addresses it, and why existing alternatives are insufficient..."
                   className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs shadow-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 leading-relaxed"
                 />
+
+                {/* Instant SWOT Analysis Generator Callout */}
+                <div className="mt-3 p-4 rounded-xl bg-linear-to-r from-indigo-50/80 via-purple-50/50 to-slate-50 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-900 border border-indigo-200/80 dark:border-indigo-800/60 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded-lg bg-indigo-600 text-white shadow-xs">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                            Instant AI SWOT Analysis
+                          </h4>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                            GEMINI 3.8
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Generate an interactive 4-quadrant matrix & TOWS playbook directly from your description
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="generate-swot-btn"
+                      disabled={isGeneratingSwot || description.trim().length < 15}
+                      onClick={() => handleGenerateSwot()}
+                      className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs ${
+                        isGeneratingSwot
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-500 cursor-not-allowed'
+                          : description.trim().length < 15
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed border border-slate-200 dark:border-slate-700'
+                          : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white'
+                      }`}
+                    >
+                      {isGeneratingSwot ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Analyzing Description...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{swotData ? 'Re-Generate SWOT' : 'Generate SWOT Analysis'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Lens Selection Pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-2 border-t border-indigo-100/60 dark:border-indigo-900/40 text-[10px]">
+                    <span className="font-semibold text-slate-500 dark:text-slate-400 mr-1">Lens:</span>
+                    {[
+                      { id: 'balanced', label: 'Balanced VC' },
+                      { id: 'aggressive_growth', label: 'Hypergrowth' },
+                      { id: 'bootstrapped', label: 'Bootstrapped' },
+                      { id: 'defensive_moat', label: 'Defensive Moat' },
+                    ].map((lens) => (
+                      <button
+                        key={lens.id}
+                        type="button"
+                        onClick={() => {
+                          setSwotLens(lens.id as any);
+                          if (swotData) handleGenerateSwot(lens.id as any);
+                        }}
+                        className={`px-2 py-0.5 rounded-md font-semibold transition-colors ${
+                          swotLens === lens.id
+                            ? 'bg-indigo-600 text-white shadow-2xs'
+                            : 'bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {lens.label}
+                      </button>
+                    ))}
+                    {description.trim().length < 15 && (
+                      <span className="text-amber-600 dark:text-amber-400 ml-auto font-medium">
+                        (Add {15 - description.trim().length} more characters to enable)
+                      </span>
+                    )}
+                  </div>
+
+                  {swotError && (
+                    <div className="mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/80 text-[11px] text-rose-700 dark:text-rose-300 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                        <span>{swotError}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateSwot()}
+                        className="font-bold underline ml-2 hover:text-rose-900"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Loading State Animation */}
+                  {isGeneratingSwot && (
+                    <div className="mt-4 p-5 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900/60 text-center animate-in fade-in">
+                      <Loader2 className="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto mb-2" />
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Evaluating Concept with Gemini API...
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                        Assessing internal strengths, structural weaknesses, external market tailwinds, and cross-quadrant TOWS strategies.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Rendered Interactive SWOT Card */}
+                  {swotData && !isGeneratingSwot && (
+                    <div className="mt-4">
+                      <SwotAnalysisCard
+                        data={swotData}
+                        isLoading={isGeneratingSwot}
+                        onRegenerate={handleGenerateSwot}
+                        onUpdate={setSwotData}
+                        standalone={true}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 4. Optional Additional Information */}

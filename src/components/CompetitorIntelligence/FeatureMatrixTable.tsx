@@ -171,7 +171,7 @@ export const FeatureMatrixTable: React.FC<FeatureMatrixTableProps> = ({
                             {row.description}
                           </span>
                         )}
-                        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mt-1 inline-block">
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider mt-1 inline-block">
                           {row.category}
                         </span>
                       </div>
@@ -240,7 +240,7 @@ export const FeatureMatrixTable: React.FC<FeatureMatrixTableProps> = ({
       )}
 
       {/* Legend & Methodology Footer */}
-      <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
+      <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400">
         <div className="flex items-center gap-4 flex-wrap">
           <span className="font-bold text-slate-700 dark:text-slate-300 text-[11px] uppercase">
             Feature Legend:
