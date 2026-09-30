@@ -304,9 +304,57 @@ function isSearchGroundingQuotaError(err: any): boolean {
   );
 }
 
+  function tryParseCompetitorJson(rawText: string): any | null {
+    if (!rawText) return null;
+    const clean = rawText.trim();
+    try {
+      const unquoted = clean.startsWith('```')
+        ? clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+        : clean;
+      return JSON.parse(unquoted);
+    } catch {
+      const firstBrace = clean.indexOf('{');
+      const lastBrace = clean.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        try {
+          return JSON.parse(clean.slice(firstBrace, lastBrace + 1));
+        } catch {
+          let candidateStr = clean.slice(firstBrace);
+          candidateStr = candidateStr.replace(/,\s*$/, '');
+          let openBraces = 0;
+          let openBrackets = 0;
+          let inString = false;
+          let escapeNext = false;
+          for (let i = 0; i < candidateStr.length; i++) {
+            const c = candidateStr[i];
+            if (escapeNext) { escapeNext = false; continue; }
+            if (c === '\\') { escapeNext = true; continue; }
+            if (c === '"') { inString = !inString; continue; }
+            if (!inString) {
+              if (c === '{') openBraces++;
+              else if (c === '}') openBraces--;
+              else if (c === '[') openBrackets++;
+              else if (c === ']') openBrackets--;
+            }
+          }
+          if (inString) candidateStr += '"';
+          while (openBrackets > 0) { candidateStr += ']'; openBrackets--; }
+          while (openBraces > 0) { candidateStr += '}'; openBraces--; }
+          try {
+            return JSON.parse(candidateStr);
+          } catch {
+            return null;
+          }
+        }
+      }
+      return null;
+    }
+  }
+
   // 1. Try search grounding first across high-availability models if not in quota cooldown
   const currentTimeMs = Date.now();
   let response: any = null;
+  let parsed: any = null;
   let usedSearchGrounding = false;
   let lastError: any = null;
 
@@ -317,11 +365,11 @@ function isSearchGroundingQuotaError(err: any): boolean {
       ).toISOString()}). Proceeding directly with structured synthesis mode.`
     );
   } else {
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
     for (const modelName of candidateModels) {
       try {
         console.log(`[VentureLens Competitor Intelligence] Calling ${modelName} with Google Search grounding...`);
-        response = await ai.models.generateContent({
+        const searchRes = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: {
@@ -332,9 +380,16 @@ function isSearchGroundingQuotaError(err: any): boolean {
           },
         });
 
-        if (response && response.text) {
-          usedSearchGrounding = true;
-          break;
+        if (searchRes && searchRes.text) {
+          const testParsed = tryParseCompetitorJson(searchRes.text);
+          if (testParsed && (testParsed.competitors || testParsed.landscape_summary || testParsed.feature_matrix)) {
+            response = searchRes;
+            parsed = testParsed;
+            usedSearchGrounding = true;
+            break;
+          } else {
+            console.log(`[VentureLens Competitor Intelligence] Search response from ${modelName} was not parseable as JSON. Trying fallback synthesis.`);
+          }
         }
       } catch (err: any) {
         lastError = err;
@@ -352,14 +407,14 @@ function isSearchGroundingQuotaError(err: any): boolean {
     }
   }
 
-  // 2. If search grounding was unavailable (e.g. quota limit, rate limit), seamlessly fall back to structured synthesis
-  if (!response || !response.text) {
+  // 2. If search grounding was unavailable or not parseable, seamlessly fall back to structured synthesis
+  if (!parsed) {
     console.log('[VentureLens Competitor Intelligence] Proceeding with structured competitor intelligence synthesis fallback...');
     const fallbackModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
     for (const modelName of fallbackModels) {
       try {
         console.log(`[VentureLens Competitor Intelligence] Calling ${modelName} in structured JSON mode...`);
-        response = await ai.models.generateContent({
+        const fallbackRes = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: {
@@ -372,9 +427,15 @@ function isSearchGroundingQuotaError(err: any): boolean {
           },
         });
 
-        if (response && response.text) {
-          console.log(`[VentureLens Competitor Intelligence] Structured synthesis succeeded with ${modelName}`);
-          break;
+        if (fallbackRes && fallbackRes.text) {
+          const fallbackParsed = tryParseCompetitorJson(fallbackRes.text);
+          if (fallbackParsed) {
+            response = fallbackRes;
+            parsed = fallbackParsed;
+            usedSearchGrounding = false;
+            console.log(`[VentureLens Competitor Intelligence] Structured synthesis succeeded with ${modelName}`);
+            break;
+          }
         }
       } catch (fallbackErr: any) {
         lastError = fallbackErr;
@@ -383,13 +444,13 @@ function isSearchGroundingQuotaError(err: any): boolean {
     }
   }
 
-  if (!response || !response.text) {
+  if (!parsed) {
     const errorDetail = lastError?.message || 'Gemini competitor intelligence service is temporarily unavailable.';
     throw new Error(`Competitor intelligence could not be completed: ${errorDetail}`);
   }
 
   // Extract grounding metadata
-  const candidate = response.candidates?.[0];
+  const candidate = response?.candidates?.[0];
   const groundingMetadata = candidate?.groundingMetadata;
   const searchQueries: string[] = groundingMetadata?.webSearchQueries || (usedSearchGrounding ? [] : [
     `Competitors and market landscape: ${context.industry}`,
@@ -398,55 +459,6 @@ function isSearchGroundingQuotaError(err: any): boolean {
   ]);
   const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
     groundingMetadata?.groundingChunks || [];
-
-  // Robust parse JSON with repair capabilities
-  let parsed: any;
-  const rawCleaned = response.text.trim();
-  try {
-    const unquoted = rawCleaned.startsWith('```')
-      ? rawCleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-      : rawCleaned;
-    parsed = JSON.parse(unquoted);
-  } catch {
-    // Try matching full outer object
-    const firstBrace = rawCleaned.indexOf('{');
-    const lastBrace = rawCleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        parsed = JSON.parse(rawCleaned.slice(firstBrace, lastBrace + 1));
-      } catch {
-        // Attempt unclosed structure recovery
-        let candidateStr = rawCleaned.slice(firstBrace);
-        candidateStr = candidateStr.replace(/,\s*$/, '');
-        let openBraces = 0;
-        let openBrackets = 0;
-        let inString = false;
-        let escapeNext = false;
-        for (let i = 0; i < candidateStr.length; i++) {
-          const c = candidateStr[i];
-          if (escapeNext) { escapeNext = false; continue; }
-          if (c === '\\') { escapeNext = true; continue; }
-          if (c === '"') { inString = !inString; continue; }
-          if (!inString) {
-            if (c === '{') openBraces++;
-            else if (c === '}') openBraces--;
-            else if (c === '[') openBrackets++;
-            else if (c === ']') openBrackets--;
-          }
-        }
-        if (inString) candidateStr += '"';
-        while (openBrackets > 0) { candidateStr += ']'; openBrackets--; }
-        while (openBraces > 0) { candidateStr += '}'; openBraces--; }
-        try {
-          parsed = JSON.parse(candidateStr);
-        } catch {
-          throw new Error('Received non-standard response from research model. Please try again.');
-        }
-      }
-    } else {
-      throw new Error('Received unparseable competitor intelligence output. Please try again.');
-    }
-  }
 
   // Deduplicate and aggregate citations
   const sourcesMap = new Map<string, CompetitorSource>();

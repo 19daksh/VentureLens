@@ -28,6 +28,16 @@ interface CompetitorDirectoryProps {
   onTogglePin?: (competitorId: string, isPinned: boolean) => void;
 }
 
+export function normalizeCompetitorCategory(type?: string): 'Direct' | 'Indirect' | 'Substitute' | 'Emerging' {
+  if (!type) return 'Direct';
+  const lower = type.toLowerCase();
+  if (lower.includes('direct') && !lower.includes('indirect')) return 'Direct';
+  if (lower.includes('indirect')) return 'Indirect';
+  if (lower.includes('substitute') || lower.includes('habit') || lower.includes('manual') || lower.includes('spreadsheet') || lower.includes('alternative')) return 'Substitute';
+  if (lower.includes('emerging') || lower.includes('startup') || lower.includes('new entrant') || lower.includes('challenger')) return 'Emerging';
+  return 'Direct';
+}
+
 export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
   competitors,
   onTogglePin,
@@ -37,22 +47,18 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
   const [selectedCompetitor, setSelectedCompetitor] = useState<CompetitorProfile | null>(null);
 
   const counts = useMemo(() => {
-    const res = { all: competitors.length, Direct: 0, Indirect: 0, Substitute: 0, Emerging: 0 };
+    const res = { all: (competitors || []).length, Direct: 0, Indirect: 0, Substitute: 0, Emerging: 0 };
     (competitors || []).forEach((c) => {
-      const raw = (c.competitor_type || (c as any).type || 'Direct').toLowerCase();
-      if (raw === 'direct') res.Direct++;
-      else if (raw === 'indirect') res.Indirect++;
-      else if (raw === 'substitute') res.Substitute++;
-      else if (raw === 'emerging') res.Emerging++;
-      else res.Direct++;
+      const norm = normalizeCompetitorCategory(c.competitor_type || (c as any).type);
+      res[norm]++;
     });
     return res;
   }, [competitors]);
 
   const filtered = useMemo(() => {
     return (competitors || []).filter((c) => {
-      const cType = (c.competitor_type || (c as any).type || 'Direct').toLowerCase();
-      const matchType = selectedType === 'all' || cType === selectedType.toLowerCase();
+      const normType = normalizeCompetitorCategory(c.competitor_type || (c as any).type);
+      const matchType = selectedType === 'all' || normType.toLowerCase() === selectedType.toLowerCase();
 
       const q = searchQuery.toLowerCase().trim();
       if (!q) return matchType;
@@ -60,7 +66,8 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
       const nameMatch = c.name && c.name.toLowerCase().includes(q);
       const targetMatch = c.target_audience && c.target_audience.toLowerCase().includes(q);
       const prodMatch = (c.core_product && c.core_product.toLowerCase().includes(q)) ||
-        ((c as any).product && (c as any).product.toLowerCase().includes(q));
+        ((c as any).product && (c as any).product.toLowerCase().includes(q)) ||
+        (Boolean((c as any).description) && (c as any).description.toLowerCase().includes(q));
       const posMatch = c.positioning && c.positioning.toLowerCase().includes(q);
       const featMatch = (c.key_features && c.key_features.some((f) => f && f.toLowerCase().includes(q))) ||
         ((c as any).features && (c as any).features.some((f: any) => f && f.toLowerCase().includes(q)));
@@ -99,27 +106,27 @@ export const CompetitorDirectory: React.FC<CompetitorDirectoryProps> = ({
   };
 
   const getTypeBadge = (type?: CompetitorType | string) => {
-    const norm = (type || 'Direct').toLowerCase();
+    const norm = normalizeCompetitorCategory(type);
     switch (norm) {
-      case 'direct':
+      case 'Direct':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
             Direct Competitor
           </span>
         );
-      case 'indirect':
+      case 'Indirect':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             Indirect Solution
           </span>
         );
-      case 'substitute':
+      case 'Substitute':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
             Substitute / Habit
           </span>
         );
-      case 'emerging':
+      case 'Emerging':
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
             Emerging Startup

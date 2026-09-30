@@ -693,7 +693,7 @@ export async function streamAdvisorResponse(options: {
     parts: [{ text: message.trim() }],
   });
 
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
   let lastError: any = null;
   let fullAccumulatedText = '';
 

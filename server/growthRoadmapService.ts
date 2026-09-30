@@ -246,17 +246,26 @@ Team Capacity: "${capacity}" (solo_founder = focused single-threaded execution; 
 
 Return strictly structured JSON conforming to the schema.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: growthRoadmapSchema,
-        temperature: 0.35,
-      },
-    });
+    const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
+    let response: any = null;
+    for (const model of models) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: growthRoadmapSchema,
+            temperature: 0.35,
+          },
+        });
+        if (response?.text) break;
+      } catch (mErr) {
+        console.warn(`[Growth Roadmap] Model ${model} failed, trying fallback:`, mErr);
+      }
+    }
 
-    const text = response.text?.trim() || '{}';
+    const text = response?.text?.trim() || '{}';
     const parsed: GrowthRoadmapData = JSON.parse(text);
 
     if (parsed.months && parsed.months.length > 0) {

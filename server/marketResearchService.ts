@@ -199,9 +199,57 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
   );
 }
 
+  function tryParseMarketJson(rawText: string): any | null {
+    if (!rawText) return null;
+    const clean = rawText.trim();
+    try {
+      const unquoted = clean.startsWith('```')
+        ? clean.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
+        : clean;
+      return JSON.parse(unquoted);
+    } catch {
+      const firstBrace = clean.indexOf('{');
+      const lastBrace = clean.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        try {
+          return JSON.parse(clean.slice(firstBrace, lastBrace + 1));
+        } catch {
+          let candidateStr = clean.slice(firstBrace);
+          candidateStr = candidateStr.replace(/,\s*$/, '');
+          let openBraces = 0;
+          let openBrackets = 0;
+          let inString = false;
+          let escapeNext = false;
+          for (let i = 0; i < candidateStr.length; i++) {
+            const c = candidateStr[i];
+            if (escapeNext) { escapeNext = false; continue; }
+            if (c === '\\') { escapeNext = true; continue; }
+            if (c === '"') { inString = !inString; continue; }
+            if (!inString) {
+              if (c === '{') openBraces++;
+              else if (c === '}') openBraces--;
+              else if (c === '[') openBrackets++;
+              else if (c === ']') openBrackets--;
+            }
+          }
+          if (inString) candidateStr += '"';
+          while (openBrackets > 0) { candidateStr += ']'; openBrackets--; }
+          while (openBraces > 0) { candidateStr += '}'; openBraces--; }
+          try {
+            return JSON.parse(candidateStr);
+          } catch {
+            return null;
+          }
+        }
+      }
+      return null;
+    }
+  }
+
   // 1. Try search grounding first across high-availability models if not in quota cooldown
   const currentTimeMs = Date.now();
   let response: any = null;
+  let parsed: any = null;
   let usedSearchGrounding = false;
   let lastError: any = null;
 
@@ -212,11 +260,11 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
       ).toISOString()}). Proceeding directly with structured synthesis mode.`
     );
   } else {
-    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
     for (const modelName of candidateModels) {
       try {
         console.log(`[VentureLens Market Research] Calling ${modelName} with Google Search grounding...`);
-        response = await ai.models.generateContent({
+        const searchRes = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: {
@@ -227,9 +275,16 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
           },
         });
 
-        if (response && response.text) {
-          usedSearchGrounding = true;
-          break;
+        if (searchRes && searchRes.text) {
+          const testParsed = tryParseMarketJson(searchRes.text);
+          if (testParsed && (testParsed.market_overview || testParsed.trends || testParsed.competitors)) {
+            response = searchRes;
+            parsed = testParsed;
+            usedSearchGrounding = true;
+            break;
+          } else {
+            console.log(`[VentureLens Market Research] Search response from ${modelName} was not parseable as JSON. Trying fallback synthesis.`);
+          }
         }
       } catch (err: any) {
         lastError = err;
@@ -247,14 +302,14 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
     }
   }
 
-  // 2. If search grounding was unavailable (e.g. quota limit, rate limit), seamlessly fall back to structured research synthesis
-  if (!response || !response.text) {
+  // 2. If search grounding was unavailable or not parseable, seamlessly fall back to structured research synthesis
+  if (!parsed) {
     console.log('[VentureLens Market Research] Proceeding with structured market intelligence synthesis fallback...');
     const fallbackModels = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
     for (const modelName of fallbackModels) {
       try {
         console.log(`[VentureLens Market Research] Calling ${modelName} in structured JSON mode...`);
-        response = await ai.models.generateContent({
+        const fallbackRes = await ai.models.generateContent({
           model: modelName,
           contents: prompt,
           config: {
@@ -267,9 +322,15 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
           },
         });
 
-        if (response && response.text) {
-          console.log(`[VentureLens Market Research] Structured synthesis succeeded with ${modelName}`);
-          break;
+        if (fallbackRes && fallbackRes.text) {
+          const fallbackParsed = tryParseMarketJson(fallbackRes.text);
+          if (fallbackParsed) {
+            response = fallbackRes;
+            parsed = fallbackParsed;
+            usedSearchGrounding = false;
+            console.log(`[VentureLens Market Research] Structured synthesis succeeded with ${modelName}`);
+            break;
+          }
         }
       } catch (fallbackErr: any) {
         lastError = fallbackErr;
@@ -278,13 +339,13 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
     }
   }
 
-  if (!response || !response.text) {
+  if (!parsed) {
     const errorDetail = lastError?.message || 'Gemini market research service is temporarily unavailable.';
     throw new Error(`Market research could not be completed: ${errorDetail}`);
   }
 
   // Extract grounding metadata from Gemini response if search grounding was active
-  const candidate = response.candidates?.[0];
+  const candidate = response?.candidates?.[0];
   const groundingMetadata = candidate?.groundingMetadata;
   const searchQueries: string[] = groundingMetadata?.webSearchQueries || (usedSearchGrounding ? [] : [
     `Market conditions and trends: ${context.industry}`,
@@ -293,55 +354,6 @@ function isMRSearchGroundingQuotaError(err: any): boolean {
   ]);
   const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> =
     groundingMetadata?.groundingChunks || [];
-
-  // Parse response JSON with robust recovery
-  let parsed: any;
-  const rawCleaned = response.text.trim();
-  try {
-    const unquoted = rawCleaned.startsWith('```')
-      ? rawCleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim()
-      : rawCleaned;
-    parsed = JSON.parse(unquoted);
-  } catch {
-    // Attempt relaxed regex extraction
-    const firstBrace = rawCleaned.indexOf('{');
-    const lastBrace = rawCleaned.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        parsed = JSON.parse(rawCleaned.slice(firstBrace, lastBrace + 1));
-      } catch {
-        // Attempt unclosed structure recovery
-        let candidateStr = rawCleaned.slice(firstBrace);
-        candidateStr = candidateStr.replace(/,\s*$/, '');
-        let openBraces = 0;
-        let openBrackets = 0;
-        let inString = false;
-        let escapeNext = false;
-        for (let i = 0; i < candidateStr.length; i++) {
-          const c = candidateStr[i];
-          if (escapeNext) { escapeNext = false; continue; }
-          if (c === '\\') { escapeNext = true; continue; }
-          if (c === '"') { inString = !inString; continue; }
-          if (!inString) {
-            if (c === '{') openBraces++;
-            else if (c === '}') openBraces--;
-            else if (c === '[') openBrackets++;
-            else if (c === ']') openBrackets--;
-          }
-        }
-        if (inString) candidateStr += '"';
-        while (openBrackets > 0) { candidateStr += ']'; openBrackets--; }
-        while (openBraces > 0) { candidateStr += '}'; openBraces--; }
-        try {
-          parsed = JSON.parse(candidateStr);
-        } catch {
-          throw new Error('Received non-standard response from research model. Please try again.');
-        }
-      }
-    } else {
-      throw new Error('Received unparseable research output. Please try again.');
-    }
-  }
 
   // Normalize sources from groundingChunks and parsed.sources
   const sourcesMap = new Map<string, ResearchSource>();

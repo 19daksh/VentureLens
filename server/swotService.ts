@@ -221,7 +221,7 @@ Instructions:
 Analyze early-stage startup descriptions with analytical depth, identifying strategic nuances and providing actionable tactical steps. Never produce vague or generic marketing bullet points.`;
 
   const ai = getGeminiClient();
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
   let lastError: any = null;
 
   for (const modelName of modelsToTry) {

@@ -125,7 +125,7 @@ async function generateSpokenTextWithFallback(
   contents: any,
   systemInstruction: string
 ): Promise<string> {
-  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
 
   for (const model of models) {
     try {
@@ -156,33 +156,37 @@ async function generatePcmAudio(
   text: string,
   voiceName: string
 ): Promise<string | null> {
-  try {
-    const cleanText = text
-      .replace(/[*#_`~[\]]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+  const cleanText = text
+    .replace(/[*#_`~[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-    const ttsRes = await ai.models.generateContent({
-      model: 'gemini-3.1-flash-tts-preview',
-      contents: [{ parts: [{ text: cleanText }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voiceName || 'Puck',
+  const ttsModels = ['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts', 'gemini-3.1-flash-tts-preview'];
+  for (const model of ttsModels) {
+    try {
+      const ttsRes = await ai.models.generateContent({
+        model,
+        contents: [{ parts: [{ text: cleanText }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: voiceName || 'Puck',
+              },
             },
           },
         },
-      },
-    });
+      });
 
-    const base64Audio = ttsRes.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    return base64Audio || null;
-  } catch (err: any) {
-    console.warn('[Voice Advisor Service] Gemini TTS generation warning:', err?.message || err);
-    return null;
+      const base64Audio = ttsRes.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (base64Audio) return base64Audio;
+    } catch (err: any) {
+      console.warn(`[Voice Advisor Service] TTS model ${model} warning:`, err?.message || err);
+    }
   }
+
+  return null;
 }
 
 /**

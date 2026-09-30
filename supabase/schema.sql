@@ -495,5 +495,36 @@ CREATE POLICY "Users can update own competitor tracking" ON public.competitor_tr
 CREATE POLICY "Users can delete own competitor tracking" ON public.competitor_tracking
   FOR DELETE USING (auth.uid() = user_id);
 
+-- 15. GROWTH ROADMAPS TABLE
+CREATE TABLE IF NOT EXISTS public.growth_roadmaps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  idea_id UUID NOT NULL REFERENCES public.startup_ideas(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  pace TEXT NOT NULL DEFAULT 'lean_bootstrapped',
+  team_capacity TEXT NOT NULL DEFAULT 'small_team',
+  roadmap_data JSONB NOT NULL,
+  completed_action_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT unique_idea_growth_roadmap UNIQUE (idea_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_growth_roadmaps_idea_id ON public.growth_roadmaps(idea_id);
+CREATE INDEX IF NOT EXISTS idx_growth_roadmaps_user_id ON public.growth_roadmaps(user_id);
+
+ALTER TABLE public.growth_roadmaps ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own growth roadmaps" ON public.growth_roadmaps
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own growth roadmaps" ON public.growth_roadmaps
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own growth roadmaps" ON public.growth_roadmaps
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own growth roadmaps" ON public.growth_roadmaps
+  FOR DELETE USING (auth.uid() = user_id);
+
 
 

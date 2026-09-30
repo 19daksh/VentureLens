@@ -118,7 +118,7 @@ IMPORTANT RULES:
 }`;
 
   let response: any = null;
-  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
   for (const model of models) {
     try {
       response = await ai.models.generateContent({
@@ -135,8 +135,13 @@ IMPORTANT RULES:
     }
   }
 
-  const rawText = response.text || '{}';
-  const parsed = JSON.parse(rawText);
+  const rawText = response?.text || '{}';
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    parsed = {};
+  }
 
   return {
     financial_summary:
@@ -239,7 +244,7 @@ Output ONLY valid JSON matching this exact structure:
 }`;
 
   let response: any = null;
-  const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const models = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash'];
   for (const model of models) {
     try {
       response = await ai.models.generateContent({
@@ -256,7 +261,13 @@ Output ONLY valid JSON matching this exact structure:
     }
   }
 
-  const parsed = JSON.parse(response.text || '{}');
+  const rawText = response?.text || '{}';
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    parsed = {};
+  }
   return {
     assumptions: parsed.assumptions || {},
     rationale: parsed.rationale || 'Tailored assumptions based on early-stage industry benchmarks.',

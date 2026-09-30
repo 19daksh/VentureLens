@@ -234,9 +234,22 @@ Evaluate early-stage concepts realistically. Look out for critical flaws, compet
 Offer pragmatic, prioritized advice that empowers founders to test assumptions before spending capital.`;
 
   // Call Gemini model with automatic retry & fallback across fast, highly-available models
-  const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+  const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.1-pro-preview'];
   let lastError: any = null;
   let response: any = null;
+
+  const isFatalQuotaOrOverload = (err: any): boolean => {
+    const msg = String(err?.message || err || '').toLowerCase();
+    return (
+      msg.includes('resource_exhausted') ||
+      msg.includes('quota') ||
+      msg.includes('rate-limit') ||
+      msg.includes('rate limit') ||
+      msg.includes('429') ||
+      msg.includes('overloaded') ||
+      msg.includes('503')
+    );
+  };
 
   for (const modelName of modelsToTry) {
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -258,8 +271,13 @@ Offer pragmatic, prioritized advice that empowers founders to test assumptions b
       } catch (err: any) {
         lastError = err;
         console.log(`[VentureLens AI] Model ${modelName} attempt ${attempt} notice:`, err?.message || err);
-        // Backoff pause
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+        // If quota exhausted or overloaded on this specific model, break immediately to try next model
+        if (isFatalQuotaOrOverload(err)) {
+          console.log(`[VentureLens AI] Model ${modelName} encountered quota/overload limit. Immediately switching to next model.`);
+          break;
+        }
+        // Backoff pause for transient network hiccups
+        await new Promise((resolve) => setTimeout(resolve, 800 * attempt));
       }
     }
     if (response && response.text) {
